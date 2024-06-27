@@ -10,7 +10,6 @@ function initializeGlobals() {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     clock = new THREE.Clock();
     
-    mazeLayout = [...defaultMazeLayout];
     walls = [];
     pellets = [];
     ghosts = [];

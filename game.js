@@ -1,4 +1,5 @@
 function initializeGame() {
+    initializeGlobals();
     initializeThreeJS();
     generateMaze();
     initializePellets();
@@ -192,4 +193,6 @@ function updateGhostAnimations() {
 }
 
 // Initialize the game when the script loads
-initializeGame();
+document.addEventListener('DOMContentLoaded', function() {
+    initializeGame();
+});

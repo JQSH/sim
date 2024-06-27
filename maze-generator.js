@@ -22,7 +22,7 @@ const defaultMazeLayout = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
-let mazeLayout = [...defaultMazeLayout];
+mazeLayout = [...defaultMazeLayout];
 
 function generatePacManMap(width, height) {
     let maze = Array(height).fill().map(() => Array(width).fill(1));
