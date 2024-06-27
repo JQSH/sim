@@ -1,13 +1,32 @@
-<html><head><base href="https://js.com"><title></title></head><body><!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Data Page</title>
-      <style>
-      </style>
-    </head>
-    <body>
-      <h1>Data Page</h1>
-    </body>
-    </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="https://Pac-Man.com">
+    <title>PAC-MAN Game</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <a href="/" class="logo">
+        <div class="logo-text">PAC-MAN</div>
+    </a>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="level">Level: 1</div>
+        <div id="gameOver">
+            <h1>Game Over</h1>
+            <p>Your score: <span id="finalScore"></span></p>
+            <button id="restartButton">Restart Game</button>
+        </div>
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <script src="https://jqsh.github.io/sim/audio.js"></script>
+    <script src="https://jqsh.github.io/sim/three-setup.js"></script>
+    <script src="https://jqsh.github.io/sim/ghost.js"></script>
+    <script src="https://jqsh.github.io/sim/maze-generator.js"></script>
+    <script src="https://jqsh.github.io/sim/game.js"></script>
+</body>
+</html>
