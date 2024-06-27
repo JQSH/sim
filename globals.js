@@ -18,5 +18,12 @@ function initializeGlobals() {
     pellets = [];
     ghosts = [];
     
+    scoreElement = document.getElementById('score');
+    finalScoreElement = document.getElementById('finalScore');
+    gameOverElement = document.getElementById('gameOver');
+    levelElement = document.getElementById('level');
+    restartButton = document.getElementById('restartButton');
+    startButton = document.getElementById('startButton');
+    
     // Other global initializations...
 }

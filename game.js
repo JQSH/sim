@@ -1,7 +1,11 @@
 function initializeGame() {
     initializeGlobals();
     initializeThreeJS();
-    initializeAudio();
+    if (typeof initializeAudio === 'function') {
+        initializeAudio();
+    } else {
+        console.warn('initializeAudio function not found');
+    }
     generateMaze();
     initializePellets();
     initializeGhosts();
@@ -74,8 +78,12 @@ function restartGame() {
 
 function gameOver() {
     isGameOver = true;
-    finalScoreElement.textContent = score;
-    gameOverElement.style.display = 'block';
+    if (finalScoreElement) {
+        finalScoreElement.textContent = score;
+    }
+    if (gameOverElement) {
+        gameOverElement.style.display = 'block';
+    }
     playDeathSound();
 }
 
@@ -147,7 +155,9 @@ function checkCollisions() {
             scene.remove(pellets[i]);
             pellets.splice(i, 1);
             score += 10;
-            scoreElement.textContent = `Score: ${score}`;
+            if (scoreElement) {
+                scoreElement.textContent = `Score: ${score}`;
+            }
             playEatingSound();
         }
     }
