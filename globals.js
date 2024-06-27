@@ -3,6 +3,7 @@ let scene, camera, renderer, clock;
 let mazeLayout, walls, pellets, player, ghosts;
 let score = 0, level = 1;
 let isGameOver = false, gameStarted = false;
+let audioContext;
 
 function initializeGlobals() {
     scene = new THREE.Scene();
