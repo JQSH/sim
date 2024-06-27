@@ -1,4 +1,8 @@
-let audioContext;
+function initializeAudio() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
 
 function createOscillator(frequency, type = 'sine') {
     const oscillator = audioContext.createOscillator();
