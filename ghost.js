@@ -108,14 +108,16 @@ function createUnifiedGhost(color) {
     return { ghost, unifiedGhost };
 }
 
-const ghostColors = [0xff0000, 0x00ffff, 0xff69b4, 0xffa500];
-const ghosts = ghostColors.map((color, index) => {
-    const { ghost, unifiedGhost } = createUnifiedGhost(color);
-    ghost.position.set(-8 + index * 2, 0.3, -9);
-    ghost.direction = { x: 1, z: 0 };
-    scene.add(ghost);
-    return { ghost, unifiedGhost };
-});
+function initializeGhosts() {
+    const ghostColors = [0xff0000, 0x00ffff, 0xff69b4, 0xffa500];
+    ghosts = ghostColors.map((color, index) => {
+        const { ghost, unifiedGhost } = createUnifiedGhost(color);
+        ghost.position.set(-8 + index * 2, 0.3, -9);
+        ghost.direction = { x: 1, z: 0 };
+        scene.add(ghost);
+        return { ghost, unifiedGhost };
+    });
+}
 
 function moveGhost(ghost) {
     const alignedX = alignToGrid(ghost.position.x);
@@ -148,4 +150,13 @@ function moveGhost(ghost) {
 
     if (ghost.position.x < -9) ghost.position.x = 9;
     if (ghost.position.x > 9) ghost.position.x = -9;
+}
+
+function checkCollisionWithGhosts() {
+    for (const { ghost } of ghosts) {
+        if (player.position.distanceTo(ghost.position) < 0.6) {
+            return true;
+        }
+    }
+    return false;
 }
