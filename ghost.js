@@ -98,11 +98,11 @@ function createUnifiedGhost(color) {
     const ghostPupilGeometry = new THREE.SphereGeometry(0.03, 16, 16);
     const ghostPupilMaterial = new THREE.MeshPhongMaterial({ color: 0x0000ff });
     const leftPupil = new THREE.Mesh(ghostPupilGeometry, ghostPupilMaterial);
-    leftPupil.position.set(-0.1, 0.1, 0.3);
+    leftPupil.position.set(-0.1, 0.1, 0.28);  // Moved slightly forward
     ghost.add(leftPupil);
 
     const rightPupil = new THREE.Mesh(ghostPupilGeometry, ghostPupilMaterial);
-    rightPupil.position.set(0.1, 0.1, 0.3);
+    rightPupil.position.set(0.1, 0.1, 0.28);  // Moved slightly forward
     ghost.add(rightPupil);
 
     return { ghost, unifiedGhost };
@@ -120,6 +120,7 @@ function initializeGhosts() {
         const { ghost, unifiedGhost } = createUnifiedGhost(color);
         ghost.position.set(-8 + index * 2, 0.3, -9);
         ghost.direction = { x: 1, z: 0 };
+        rotateGhost(ghost, ghost.direction);  // Rotate ghost to face initial direction
         scene.add(ghost);
         ghosts.push({ ghost, unifiedGhost });
     });
@@ -145,6 +146,7 @@ function moveGhost(ghost) {
         if (validDirections.length > 0) {
             const newDirection = validDirections[Math.floor(Math.random() * validDirections.length)];
             ghost.direction = newDirection;
+            rotateGhost(ghost, newDirection);  // Rotate ghost when changing direction
         }
 
         ghost.position.x = alignedX;
@@ -165,4 +167,11 @@ function checkCollisionWithGhosts() {
         }
     }
     return false;
+}
+
+function rotateGhost(ghost, direction) {
+    if (direction.x !== 0 || direction.z !== 0) {
+        const angle = Math.atan2(direction.x, direction.z);
+        ghost.rotation.y = angle;
+    }
 }
