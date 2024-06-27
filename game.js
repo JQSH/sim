@@ -1,10 +1,15 @@
 function initializeGame() {
     initializeGlobals();
     initializeThreeJS();
+    initializeAudio();
     generateMaze();
     initializePellets();
     initializeGhosts();
     initializePlayer();
+
+    // Reset movement variables
+    nextMoveDirection = { x: 0, z: 0 };
+    moveDirection = { x: 0, z: 0 };
 
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleResize);
