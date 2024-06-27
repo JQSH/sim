@@ -68,7 +68,7 @@ function restartGame() {
     generateMaze();
     initializePellets();
     initializePlayer();
-    initializeGhosts();
+    initializeGhosts();  // This will reset all ghosts
 
     moveDirection = { x: 0, z: 0 };
     nextMoveDirection = { x: 0, z: 0 };
@@ -95,7 +95,7 @@ function startNextLevel() {
     generateMaze();
     initializePellets();
     initializePlayer();
-    initializeGhosts();
+    initializeGhosts();  // This will reset all ghosts
 
     moveDirection = { x: 0, z: 0 };
     nextMoveDirection = { x: 0, z: 0 };
@@ -108,7 +108,7 @@ function animate() {
 
     if (gameStarted && !isGameOver) {
         updatePlayerPosition();
-        updateGhosts();
+        ghosts.forEach(({ ghost }) => moveGhost(ghost));  // Make sure this line is present
         checkCollisions();
         updateCamera();
     }

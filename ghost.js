@@ -109,13 +109,19 @@ function createUnifiedGhost(color) {
 }
 
 function initializeGhosts() {
+    // Remove existing ghosts from the scene
+    ghosts.forEach(({ ghost }) => scene.remove(ghost));
+    
+    // Clear the ghosts array
+    ghosts = [];
+
     const ghostColors = [0xff0000, 0x00ffff, 0xff69b4, 0xffa500];
-    ghosts = ghostColors.map((color, index) => {
+    ghostColors.forEach((color, index) => {
         const { ghost, unifiedGhost } = createUnifiedGhost(color);
         ghost.position.set(-8 + index * 2, 0.3, -9);
         ghost.direction = { x: 1, z: 0 };
         scene.add(ghost);
-        return { ghost, unifiedGhost };
+        ghosts.push({ ghost, unifiedGhost });
     });
 }
 
