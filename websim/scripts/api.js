@@ -42,16 +42,6 @@ function initializeAPI() {
     updateApiSettings();
 }
 
-javascriptCopylet isProcessing = false;
-
-const apiConfigs = {
-    // ... (keep your existing apiConfigs as they are)
-};
-
-function initializeAPI() {
-    // ... (keep your existing initializeAPI function as it is)
-}
-
 function sendRequest(userRequest, targetElement = null) {
     if (isProcessing) return;
 
