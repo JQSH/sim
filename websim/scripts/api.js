@@ -1,11 +1,45 @@
 let isProcessing = false;
 
 const apiConfigs = {
-    // ... (keep existing apiConfigs)
+    general: {
+        apiType: 'general',
+        positioningInstructions: "If the user requests something in a specific position, please reorganize or create structure to achieve that effect. Use absolute positioning or other CSS techniques as necessary.",
+        apiInstructions: "You have the capability to generate any type of content, structure, or functionality. Please use vanilla CSS for styling and vanilla JavaScript for any scripting needs. Be creative and don't hesitate to implement advanced features or designs. Do not modify or style the transform menu, transform button, or reset button."
+    },
+    content: {
+        apiType: 'content',
+        positioningInstructions: "Focus on modifying or creating textual and media content. Maintain existing layout and structure unless explicitly requested otherwise.",
+        apiInstructions: "Concentrate on generating, modifying, or enhancing textual content, images, videos, and other media elements. Avoid making significant changes to layout or functionality unless specifically requested. Use vanilla CSS if any styling is needed. Do not modify or style the transform menu, transform button, or reset button."
+    },
+    style: {
+        apiType: 'style',
+        positioningInstructions: "Modify layout, colors, fonts, and visual elements as requested. Use vanilla CSS techniques to achieve desired visual effects.",
+        apiInstructions: "Focus on visual and stylistic changes. Modify CSS properties, add new styles, and adjust layout as needed. Use only vanilla CSS for all styling. Avoid changing the core content or functionality unless explicitly requested. Do not modify or style the transform menu, transform button, or reset button."
+    },
+    functionality: {
+        apiType: 'functionality',
+        positioningInstructions: "Add or modify interactive elements as requested. Ensure new functionality is properly positioned and integrated with existing elements.",
+        apiInstructions: "Implement new features, add interactivity, or modify existing functionality. Use only vanilla JavaScript to achieve the desired behavior. Minimize changes to content or style unless necessary for the requested functionality. Do not modify or style the transform menu, transform button, or reset button."
+    },
+    backend: {
+        apiType: 'backend',
+        positioningInstructions: "Focus on server-side logic and data management. Front-end changes should be minimal unless explicitly requested.",
+        apiInstructions: "Implement or modify server-side logic, database interactions, and API endpoints. Use appropriate backend technologies. For any necessary front-end changes, use vanilla JavaScript and vanilla CSS. Minimize front-end changes unless necessary for integrating with backend modifications. Do not modify or style the transform menu, transform button, or reset button."
+    }
 };
 
 function initializeAPI() {
-    // ... (keep existing initializeAPI function)
+    const apiSelector = document.getElementById('websim-api-selector');
+    const apiSettings = document.getElementById('websim-api-settings');
+
+    function updateApiSettings() {
+        const selectedApi = apiSelector.value;
+        const config = apiConfigs[selectedApi];
+        apiSettings.textContent = JSON.stringify(config, null, 2);
+    }
+
+    apiSelector.addEventListener('change', updateApiSettings);
+    updateApiSettings();
 }
 
 function sendRequest(userRequest, targetElement = null) {
@@ -36,7 +70,6 @@ function sendRequest(userRequest, targetElement = null) {
         uniqueWebsimIds: true,
         fullPageControl: true,
         clickCoords: clickCoords,
-        currentContent: document.getElementById('content').innerHTML,
         ...config
     };
 
@@ -70,7 +103,6 @@ function sendRequest(userRequest, targetElement = null) {
         }));
         receivedInfo.textContent = JSON.stringify(escapedData, null, 2);
         applyChanges(escapedData);
-        saveStateToHistory();
     })
     .catch(error => {
         console.error('Error:', error);
@@ -89,12 +121,12 @@ function sendRequest(userRequest, targetElement = null) {
 }
 
 function applyChanges(data) {
-    const contentDiv = document.getElementById('content');
-
     // Handle new format
     if (data.htmlContent || data.cssContent || data.jsContent) {
         if (data.htmlContent) {
-            contentDiv.innerHTML = data.htmlContent;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.htmlContent;
+            document.getElementById('content').appendChild(tempDiv.firstChild);
         }
 
         if (data.cssContent) {
@@ -104,13 +136,10 @@ function applyChanges(data) {
                 styleElement.id = 'demo-style';
                 document.head.appendChild(styleElement);
             }
-            styleElement.textContent = data.cssContent;
+            styleElement.textContent += data.cssContent;
         }
 
         if (data.jsContent) {
-            const existingScripts = document.querySelectorAll('script:not([src])');
-            existingScripts.forEach(script => script.remove());
-
             const scriptElement = document.createElement('script');
             scriptElement.textContent = data.jsContent;
             document.body.appendChild(scriptElement);
@@ -119,7 +148,7 @@ function applyChanges(data) {
 
     // Handle original format
     if (data.html) {
-        contentDiv.innerHTML = data.html;
+        document.getElementById('content').innerHTML = data.html;
     }
 
     if (data.css) {
@@ -133,9 +162,6 @@ function applyChanges(data) {
     }
 
     if (data.javascript) {
-        const existingScripts = document.querySelectorAll('script:not([src])');
-        existingScripts.forEach(script => script.remove());
-
         const scriptElement = document.createElement('script');
         scriptElement.textContent = data.javascript;
         document.body.appendChild(scriptElement);
@@ -172,10 +198,10 @@ function applyChanges(data) {
                 if (parentElement) {
                     parentElement.appendChild(newElement);
                 } else {
-                    contentDiv.appendChild(newElement);
+                    document.getElementById('content').appendChild(newElement);
                 }
             } else {
-                contentDiv.appendChild(newElement);
+                document.getElementById('content').appendChild(newElement);
             }
         });
     }
