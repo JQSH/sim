@@ -121,14 +121,60 @@ function sendRequest(userRequest, targetElement = null) {
 }
 
 function applyChanges(data) {
-    // Handle new format
-    if (data.htmlContent || data.cssContent || data.jsContent) {
-        if (data.htmlContent) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = data.htmlContent;
-            document.getElementById('content').appendChild(tempDiv.firstChild);
+    // Prioritize modifications over new content
+    if (data.modifyElement || data.removeElements || data.css || data.javascript) {
+        // Handle original format modifications
+        if (data.css) {
+            let styleElement = document.getElementById('demo-style');
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = 'demo-style';
+                document.head.appendChild(styleElement);
+            }
+            styleElement.textContent = data.css;
         }
 
+        if (data.javascript) {
+            const scriptElement = document.createElement('script');
+            scriptElement.textContent = data.javascript;
+            document.body.appendChild(scriptElement);
+        }
+
+        if (data.removeElements) {
+            data.removeElements.forEach(selector => {
+                const elementsToRemove = document.querySelectorAll(selector);
+                elementsToRemove.forEach(el => el.remove());
+            });
+        }
+
+        if (data.modifyElement) {
+            data.modifyElement.forEach(mod => {
+                const element = document.querySelector(mod.selector);
+                if (element) {
+                    if (mod.newContent !== undefined) element.innerHTML = mod.newContent;
+                    if (mod.attributes) {
+                        Object.keys(mod.attributes).forEach(attr => {
+                            element.setAttribute(attr, mod.attributes[attr]);
+                        });
+                    }
+                    if (mod.style) {
+                        Object.assign(element.style, mod.style);
+                    }
+                    if (mod.addClass) {
+                        mod.addClass.split(' ').forEach(cls => element.classList.add(cls));
+                    }
+                    if (mod.removeClass) {
+                        mod.removeClass.split(' ').forEach(cls => element.classList.remove(cls));
+                    }
+                }
+            });
+        }
+    } else {
+        // Handle new format content if no modifications are specified
+        if (data.htmlContent) {
+            document.getElementById('content').innerHTML = data.htmlContent;
+        }
+        
         if (data.cssContent) {
             let styleElement = document.getElementById('demo-style');
             if (!styleElement) {
@@ -144,27 +190,6 @@ function applyChanges(data) {
             scriptElement.textContent = data.jsContent;
             document.body.appendChild(scriptElement);
         }
-    }
-
-    // Handle original format
-    if (data.html) {
-        document.getElementById('content').innerHTML = data.html;
-    }
-
-    if (data.css) {
-        let styleElement = document.getElementById('demo-style');
-        if (!styleElement) {
-            styleElement = document.createElement('style');
-            styleElement.id = 'demo-style';
-            document.head.appendChild(styleElement);
-        }
-        styleElement.textContent = data.css;
-    }
-
-    if (data.javascript) {
-        const scriptElement = document.createElement('script');
-        scriptElement.textContent = data.javascript;
-        document.body.appendChild(scriptElement);
     }
 
     // Apply theme changes
@@ -202,36 +227,6 @@ function applyChanges(data) {
                 }
             } else {
                 document.getElementById('content').appendChild(newElement);
-            }
-        });
-    }
-
-    if (data.removeElements) {
-        data.removeElements.forEach(selector => {
-            const elementsToRemove = document.querySelectorAll(selector);
-            elementsToRemove.forEach(el => el.remove());
-        });
-    }
-
-    if (data.modifyElement) {
-        data.modifyElement.forEach(mod => {
-            const element = document.querySelector(mod.selector);
-            if (element) {
-                if (mod.newContent !== undefined) element.innerHTML = mod.newContent;
-                if (mod.attributes) {
-                    Object.keys(mod.attributes).forEach(attr => {
-                        element.setAttribute(attr, mod.attributes[attr]);
-                    });
-                }
-                if (mod.style) {
-                    Object.assign(element.style, mod.style);
-                }
-                if (mod.addClass) {
-                    mod.addClass.split(' ').forEach(cls => element.classList.add(cls));
-                }
-                if (mod.removeClass) {
-                    mod.removeClass.split(' ').forEach(cls => element.classList.remove(cls));
-                }
             }
         });
     }
