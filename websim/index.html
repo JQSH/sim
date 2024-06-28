@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="https://dynamicwebsitechanges.com">
+    <base href="https://jqsh.github.io/sim/websim/">
     <title>WebSim Transformer</title>
-    <link rel="stylesheet" href="https://jqsh.github.io/sim/websimstyles.css">
+    <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
     <button id="websim-menu-toggle">Transform</button>
@@ -13,18 +13,22 @@
 
     <div id="websim-transform-menu">
         <h2>Transform Request</h2>
-        <select id="websim-api-select">
-            <option value="general">General Transformations</option>
-            <option value="layout">Layout and Design</option>
-            <option value="content">Content Generation</option>
-            <option value="functionality">Functionality and Interactivity</option>
-            <option value="style">Style and Theming</option>
-            <option value="backend">Backend Integration</option>
+        <select id="websim-api-selector">
+            <option value="general">General</option>
+            <option value="content">Content</option>
+            <option value="style">Style</option>
+            <option value="functionality">Functionality</option>
+            <option value="backend">Backend</option>
         </select>
         <textarea id="websim-text-input" rows="4" placeholder="Enter your request (e.g., 'Make it look like a futuristic spaceship interface' or 'Transform the page into an ancient scroll')"></textarea>
         <button id="websim-send-button">Apply Transform</button>
         <button id="websim-toggle-click-menu">Toggle Click Menu</button>
         <div id="websim-loading-spinner"></div>
+        
+        <div id="websim-api-settings-container">
+            <h3>Current API Settings</h3>
+            <pre id="websim-api-settings"></pre>
+        </div>
         
         <div id="websim-info-container">
             <h3>API Information</h3>
@@ -52,6 +56,9 @@
 
     <div class="websim-overlay"></div>
 
-    <script src="https://jqsh.github.io/sim/websim.js"></script>
+    <script src="scripts/state.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/main.js"></script>
 </body>
 </html>
