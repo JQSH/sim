@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="https://dynamicwebsitechanges.com">
+    <title>WebSim Transformer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button id="websim-menu-toggle">Transform</button>
+    <button id="websim-reset-button">Reset</button>
+
+    <div id="websim-transform-menu">
+        <h2>Transform Request</h2>
+        <select id="websim-api-select">
+            <option value="general">General Transformations</option>
+            <option value="layout">Layout and Design</option>
+            <option value="content">Content Generation</option>
+            <option value="functionality">Functionality and Interactivity</option>
+            <option value="style">Style and Theming</option>
+            <option value="backend">Backend Integration</option>
+        </select>
+        <textarea id="websim-text-input" rows="4" placeholder="Enter your request (e.g., 'Make it look like a futuristic spaceship interface' or 'Transform the page into an ancient scroll')"></textarea>
+        <button id="websim-send-button">Apply Transform</button>
+        <button id="websim-toggle-click-menu">Toggle Click Menu</button>
+        <div id="websim-loading-spinner"></div>
+        
+        <div id="websim-info-container">
+            <h3>API Information</h3>
+            <div>
+                <h4>Sent to API:</h4>
+                <pre id="websim-sent-info"></pre>
+            </div>
+            <div>
+                <h4>Received from API:</h4>
+                <pre id="websim-received-info"></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="content">
+        <!-- Main content will be dynamically generated here -->
+    </div>
+
+    <div id="websim-popup">
+        <button id="websim-popup-close">&times;</button>
+        <input type="text" id="websim-popup-input" placeholder="Enter modification instructions">
+        <button id="websim-popup-submit">Apply</button>
+        <div id="websim-popup-loading"></div>
+    </div>
+
+    <div class="websim-overlay"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
