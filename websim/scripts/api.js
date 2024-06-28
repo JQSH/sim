@@ -121,6 +121,30 @@ function sendRequest(userRequest, targetElement = null) {
 }
 
 function applyChanges(data) {
+    // Apply HTML
+    if (data.html) {
+        document.getElementById('content').innerHTML = data.html;
+    }
+
+    // Apply CSS
+    if (data.css) {
+        let styleElement = document.getElementById('demo-style');
+        if (!styleElement) {
+            styleElement = document.createElement('style');
+            styleElement.id = 'demo-style';
+            document.head.appendChild(styleElement);
+        }
+        styleElement.textContent = data.css;
+    }
+
+    // Apply JavaScript
+    if (data.javascript) {
+        const scriptElement = document.createElement('script');
+        scriptElement.textContent = data.javascript;
+        document.body.appendChild(scriptElement);
+    }
+
+    // Apply theme changes
     if (data.theme) state.theme = data.theme;
     if (data.bgColor) state.bgColor = data.bgColor;
     if (data.textColor) state.textColor = data.textColor;
