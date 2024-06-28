@@ -1,8 +1,11 @@
 let currentElement = null;
 let clickCoords = { x: 0, y: 0 };
 let clickMenuEnabled = true;
+let originalContent;
 
 function initializeUI() {
+    originalContent = document.getElementById('content').innerHTML;
+    
     const menuToggle = document.getElementById('websim-menu-toggle');
     const resetButton = document.getElementById('websim-reset-button');
     const transformMenu = document.getElementById('websim-transform-menu');
@@ -16,6 +19,20 @@ function initializeUI() {
     const overlay = document.querySelector('.websim-overlay');
     const content = document.getElementById('content');
 
+    // Add undo and redo buttons
+    const undoButton = document.createElement('button');
+    undoButton.id = 'websim-undo-button';
+    undoButton.textContent = 'Undo';
+    undoButton.addEventListener('click', undo);
+
+    const redoButton = document.createElement('button');
+    redoButton.id = 'websim-redo-button';
+    redoButton.textContent = 'Redo';
+    redoButton.addEventListener('click', redo);
+
+    transformMenu.insertBefore(redoButton, transformMenu.firstChild);
+    transformMenu.insertBefore(undoButton, transformMenu.firstChild);
+
     menuToggle.addEventListener('click', function() {
         transformMenu.classList.toggle('open');
     });
@@ -25,6 +42,7 @@ function initializeUI() {
         state = JSON.parse(JSON.stringify(originalState));
         updateStyles();
         saveState();
+        saveStateToHistory();
     });
 
     toggleClickMenuButton.addEventListener('click', function() {
@@ -60,4 +78,6 @@ function initializeUI() {
     popupClose.addEventListener('click', function() {
         popup.style.display = 'none';
     });
+
+    updateUndoRedoButtons();
 }

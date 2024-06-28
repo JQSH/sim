@@ -1,47 +1,66 @@
-let state = {
-    theme: 'light',
-    bgColor: '#f0f0f0',
-    textColor: '#333333',
-    accentColor: '#4CAF50',
-    fontSize: '16',
-    fontFamily: 'Arial, sans-serif'
-};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Transformer</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/websim/styles/main.css">
+</head>
+<body>
+    <button id="websim-menu-toggle">Transform</button>
+    <button id="websim-reset-button">Reset</button>
 
-const originalState = JSON.parse(JSON.stringify(state));
+    <div id="websim-transform-menu">
+        <h2>Transform Request</h2>
+        <!-- Add Undo and Redo buttons here -->
+        <button id="websim-undo-button">Undo</button>
+        <button id="websim-redo-button">Redo</button>
+        <select id="websim-api-selector">
+            <option value="general">General</option>
+            <option value="content">Content</option>
+            <option value="style">Style</option>
+            <option value="functionality">Functionality</option>
+            <option value="backend">Backend</option>
+        </select>
+        <textarea id="websim-text-input" rows="4" placeholder="Enter your request (e.g., 'Make it look like a futuristic spaceship interface' or 'Transform the page into an ancient scroll')"></textarea>
+        <button id="websim-send-button">Apply Transform</button>
+        <button id="websim-toggle-click-menu">Toggle Click Menu</button>
+        <div id="websim-loading-spinner"></div>
+        
+        <div id="websim-api-settings-container">
+            <h3>Current API Settings</h3>
+            <pre id="websim-api-settings"></pre>
+        </div>
+        
+        <div id="websim-info-container">
+            <h3>API Information</h3>
+            <div>
+                <h4>Sent to API:</h4>
+                <pre id="websim-sent-info"></pre>
+            </div>
+            <div>
+                <h4>Received from API:</h4>
+                <pre id="websim-received-info"></pre>
+            </div>
+        </div>
+    </div>
 
-function updateStyles() {
-    document.documentElement.style.setProperty('--bg-color', state.bgColor);
-    document.documentElement.style.setProperty('--text-color', state.textColor);
-    document.documentElement.style.setProperty('--accent-color', state.accentColor);
-    document.documentElement.style.setProperty('--font-size', `${state.fontSize}px`);
-    document.documentElement.style.setProperty('--font-family', state.fontFamily);
+    <div id="content">
+        <!-- Main content will be dynamically generated here -->
+    </div>
 
-    if (state.theme === 'dark') {
-        document.body.style.backgroundColor = '#333333';
-        document.body.style.color = '#ffffff';
-    } else if (state.theme === 'neon') {
-        document.body.style.backgroundColor = '#000000';
-        document.body.style.color = state.accentColor;
-        document.body.style.textShadow = `0 0 5px ${state.accentColor}, 0 0 10px ${state.accentColor}`;
-    } else {
-        document.body.style.backgroundColor = state.bgColor;
-        document.body.style.color = state.textColor;
-        document.body.style.textShadow = 'none';
-    }
-}
+    <div id="websim-popup">
+        <button id="websim-popup-close">&times;</button>
+        <input type="text" id="websim-popup-input" placeholder="Enter modification instructions">
+        <button id="websim-popup-submit">Apply</button>
+        <div id="websim-popup-loading"></div>
+    </div>
 
-function saveState() {
-    localStorage.setItem('websiteTransformerState', JSON.stringify(state));
-}
+    <div class="websim-overlay"></div>
 
-function loadState() {
-    const savedState = localStorage.getItem('websiteTransformerState');
-    if (savedState) {
-        state = JSON.parse(savedState);
-        updateStyles();
-    }
-}
-
-function initializeState() {
-    loadState();
-}
+    <script src="https://jqsh.github.io/sim/websim/scripts/state.js"></script>
+    <script src="https://jqsh.github.io/sim/websim/scripts/ui.js"></script>
+    <script src="https://jqsh.github.io/sim/websim/scripts/api.js"></script>
+    <script src="https://jqsh.github.io/sim/websim/scripts/main.js"></script>
+</body>
+</html>
