@@ -42,6 +42,16 @@ function initializeAPI() {
     updateApiSettings();
 }
 
+javascriptCopylet isProcessing = false;
+
+const apiConfigs = {
+    // ... (keep your existing apiConfigs as they are)
+};
+
+function initializeAPI() {
+    // ... (keep your existing initializeAPI function as it is)
+}
+
 function sendRequest(userRequest, targetElement = null) {
     if (isProcessing) return;
 
@@ -121,12 +131,36 @@ function sendRequest(userRequest, targetElement = null) {
 }
 
 function applyChanges(data) {
-    // Apply HTML
+    // Handle new format
+    if (data.htmlContent || data.cssContent || data.jsContent) {
+        if (data.htmlContent) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.htmlContent;
+            document.getElementById('content').appendChild(tempDiv.firstChild);
+        }
+
+        if (data.cssContent) {
+            let styleElement = document.getElementById('demo-style');
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.id = 'demo-style';
+                document.head.appendChild(styleElement);
+            }
+            styleElement.textContent += data.cssContent;
+        }
+
+        if (data.jsContent) {
+            const scriptElement = document.createElement('script');
+            scriptElement.textContent = data.jsContent;
+            document.body.appendChild(scriptElement);
+        }
+    }
+
+    // Handle original format
     if (data.html) {
         document.getElementById('content').innerHTML = data.html;
     }
 
-    // Apply CSS
     if (data.css) {
         let styleElement = document.getElementById('demo-style');
         if (!styleElement) {
@@ -137,7 +171,6 @@ function applyChanges(data) {
         styleElement.textContent = data.css;
     }
 
-    // Apply JavaScript
     if (data.javascript) {
         const scriptElement = document.createElement('script');
         scriptElement.textContent = data.javascript;
