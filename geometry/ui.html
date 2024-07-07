@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Module - Geometry Wars Clone</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/geometry/styles.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="lives">Lives: 3</div>
+    </div>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="uiModule">
+    class UI {
+        constructor() {
+            this.scoreElement = document.getElementById('score');
+            this.livesElement = document.getElementById('lives');
+        }
+
+        updateScore(score) {
+            this.scoreElement.textContent = `Score: ${score}`;
+        }
+
+        updateLives(lives) {
+            this.livesElement.textContent = `Lives: ${lives}`;
+        }
+
+        showGameOver(finalScore) {
+            const gameOverElement = document.createElement('div');
+            gameOverElement.style.position = 'absolute';
+            gameOverElement.style.top = '50%';
+            gameOverElement.style.left = '50%';
+            gameOverElement.style.transform = 'translate(-50%, -50%)';
+            gameOverElement.style.color = 'white';
+            gameOverElement.style.fontSize = '36px';
+            gameOverElement.style.textAlign = 'center';
+            gameOverElement.innerHTML = `Game Over<br>Final Score: ${finalScore}`;
+            document.body.appendChild(gameOverElement);
+        }
+    }
+    </script>
+
+    <script>
+    function initUITest() {
+        const ui = new UI();
+        let score = 0;
+        let lives = 3;
+
+        function simulateGame() {
+            score += 10;
+            ui.updateScore(score);
+
+            if (score % 100 === 0) {
+                lives--;
+                ui.updateLives(lives);
+
+                if (lives <= 0) {
+                    ui.showGameOver(score);
+                    return;
+                }
+            }
+
+            setTimeout(simulateGame, 1000);
+        }
+
+        simulateGame();
+    }
+
+    window.onload = initUITest;
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Module - Geometry Wars Clone</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/geometry/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="playSound">Play Sound</button>
+        <button id="playMusic">Play Music</button>
+        <button id="stopMusic">Stop Music</button>
+    </div>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="audioModule">
+    class AudioManager {
+        constructor() {
+            this.sounds = {};
+            this.music = null;
+        }
+
+        loadSound(name, url) {
+            const audio = new Audio(url);
+            this.sounds[name] = audio;
+        }
+
+        playSound(name) {
+            if (this.sounds[name]) {
+                this.sounds[name].currentTime = 0;
+                this.sounds[name].play();
+            }
+        }
+
+        loadMusic(url) {
+            this.music = new Audio(url);
+            this.music.loop = true;
+        }
+
+        playMusic() {
+            if (this.music) {
+                this.music.play();
+            }
+        }
+
+        stopMusic() {
+            if (this.music) {
+                this.music.pause();
+                this.music.currentTime = 0;
+            }
+        }
+    }
+    </script>
+
+    <script>
+    function initAudioTest() {
+        const audioManager = new AudioManager();
+
+        // In a real scenario, you'd load actual sound files
+        audioManager.loadSound('explosion', 'path/to/explosion.mp3');
+        audioManager.loadMusic('path/to/background_music.mp3');
+
+        document.getElementById('playSound').addEventListener('click', () => {
+            audioManager.playSound('explosion');
+        });
+
+        document.getElementById('playMusic').addEventListener('click', () => {
+            audioManager.playMusic();
+        });
+
+        document.getElementById('stopMusic').addEventListener('click', () => {
+            audioManager.stopMusic();
+        });
+    }
+
+    window.onload = initAudioTest;
+    </script>
+</body>
+</html>

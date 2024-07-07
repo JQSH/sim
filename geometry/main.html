@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Wars Clone</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/graphics.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/gameMechanics.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/input.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/enemyAI.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/ui.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/audio.js"></script>
+
+    <script>
+    window.onload = () => {
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        GameMechanics.startGame(canvas);
+    };
+    </script>
+</body>
+</html>

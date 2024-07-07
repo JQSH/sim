@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Input Module - Geometry Wars Clone</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/geometry/styles.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div id="movement">Movement: X=0, Y=0</div>
+        <div id="shooting">Shooting: X=0, Y=0</div>
+    </div>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="inputModule">
+    class ControllerInputManager {
+        constructor() {
+            this.sensitivity = 1.4;
+            this.deadzone = 0.27;
+            this.stopThreshold = 0.075;
+            this.maxThreshold = 0.95;
+            this.smoothingFactor = 0.2;
+            this.currentX = 0;
+            this.currentY = 0;
+            this.shootX = 0;
+            this.shootY = 0;
+        }
+
+        applyDeadzone(value) {
+            const percentage = (Math.abs(value) - this.deadzone) / (this.maxThreshold - this.deadzone);
+            if (percentage < 0) return 0;
+            return percentage > 1 ? Math.sign(value) : Math.sign(value) * percentage;
+        }
+
+        smoothInput(rawX, rawY) {
+            const processedX = this.applyDeadzone(rawX) * this.sensitivity;
+            const processedY = this.applyDeadzone(rawY) * this.sensitivity;
+
+            this.currentX = this.currentX * (1 - this.smoothingFactor) + processedX * this.smoothingFactor;
+            this.currentY = this.currentY * (1 - this.smoothingFactor) + processedY * this.smoothingFactor;
+
+            if (Math.abs(this.currentX) < this.stopThreshold) this.currentX = 0;
+            if (Math.abs(this.currentY) < this.stopThreshold) this.currentY = 0;
+
+            return { x: this.currentX, y: this.currentY };
+        }
+
+        getMovement(gamepad) {
+            if (!gamepad) return { x: 0, y: 0 };
+            return this.smoothInput(gamepad.axes[0], gamepad.axes[1]);
+        }
+
+        getShootingDirection(gamepad) {
+            if (!gamepad) return { x: 0, y: 0 };
+            this.shootX = this.applyDeadzone(gamepad.axes[2]);
+            this.shootY = this.applyDeadzone(gamepad.axes[3]);
+            return { x: this.shootX, y: this.shootY };
+        }
+    }
+
+    class InputManager {
+        constructor() {
+            this.keys = {};
+            this.gamepad = null;
+            this.controllerManager = new ControllerInputManager();
+            this.setupEventListeners();
+        }
+
+        setupEventListeners() {
+            document.addEventListener('keydown', (e) => this.keys[e.code] = true);
+            document.addEventListener('keyup', (e) => this.keys[e.code] = false);
+            window.addEventListener("gamepadconnected", (e) => {
+                console.log("Gamepad connected:", e.gamepad);
+                this.gamepad = e.gamepad;
+            });
+            window.addEventListener("gamepaddisconnected", (e) => {
+                console.log("Gamepad disconnected:", e.gamepad);
+                this.gamepad = null;
+            });
+        }
+
+        update() {
+            if (this.gamepad) {
+                const gamepads = navigator.getGamepads();
+                this.gamepad = gamepads[this.gamepad.index];
+            }
+        }
+
+        getMovement() {
+            let dx = 0;
+            let dy = 0;
+
+            if (this.gamepad) {
+                const movement = this.controllerManager.getMovement(this.gamepad);
+                dx = movement.x;
+                dy = movement.y;
+            } else {
+                if (this.keys['ArrowUp'] || this.keys['KeyW']) dy -= 1;
+                if (this.keys['ArrowDown'] || this.keys['KeyS']) dy += 1;
+                if (this.keys['ArrowLeft'] || this.keys['KeyA']) dx -= 1;
+                if (this.keys['ArrowRight'] || this.keys['KeyD']) dx += 1;
+            }
+
+            const magnitude = Math.sqrt(dx * dx + dy * dy);
+            if (magnitude !== 0) {
+                dx = dx / magnitude;
+                dy = dy / magnitude;
+            }
+
+            return { x: dx, y: dy };
+        }
+
+        getShootingDirection() {
+            if (this.gamepad) {
+                return this.controllerManager.getShootingDirection(this.gamepad);
+            } else {
+                // For keyboard, shooting direction is the same as movement
+                return this.getMovement();
+            }
+        }
+
+        isFirePressed() {
+            return this.gamepad ? this.gamepad.buttons[0].pressed : this.keys['Space'];
+        }
+    }
+    </script>
+
+    <script>
+    function initInputTest() {
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const input = new InputManager();
+        const movementDisplay = document.getElementById('movement');
+        const shootingDisplay = document.getElementById('shooting');
+
+        function updateDisplay() {
+            input.update();
+            const movement = input.getMovement();
+            const shooting = input.getShootingDirection();
+            movementDisplay.textContent = `Movement: X=${movement.x.toFixed(2)}, Y=${movement.y.toFixed(2)}`;
+            shootingDisplay.textContent = `Shooting: X=${shooting.x.toFixed(2)}, Y=${shooting.y.toFixed(2)}`;
+            requestAnimationFrame(updateDisplay);
+        }
+
+        updateDisplay();
+    }
+
+    window.onload = initInputTest;
+    </script>
+</body>
+</html>

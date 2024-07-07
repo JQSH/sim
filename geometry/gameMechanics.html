@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Mechanics Module - Geometry Wars Clone</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="lives">Lives: 3</div>
+    </div>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="gameMechanicsModule">
+    class GameMechanics {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.player = this.createPlayer();
+            this.enemies = [];
+            this.bullets = [];
+            this.score = 0;
+            this.lives = 3;
+        }
+
+        static startGame(canvas) {
+            const game = new GameMechanics(canvas);
+            game.gameLoop();
+        }
+
+        createPlayer() {
+            return {
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                size: 20,
+                speed: 5,
+                angle: 0,
+                recentMovements: []
+            };
+        }
+
+        updatePlayer(movement) {
+            const dx = movement.x * this.player.speed;
+            const dy = movement.y * this.player.speed;
+            
+            this.player.x += dx;
+            this.player.y += dy;
+            
+            this.player.x = Math.max(this.player.size / 2, Math.min(this.canvas.width - this.player.size / 2, this.player.x));
+            this.player.y = Math.max(this.player.size / 2, Math.min(this.canvas.height - this.player.size / 2, this.player.y));
+            
+            if (dx !== 0 || dy !== 0) {
+                this.player.recentMovements.push({dx, dy});
+                if (this.player.recentMovements.length > 10) {
+                    this.player.recentMovements.shift();
+                }
+                
+                const avgMovement = this.player.recentMovements.reduce((acc, mov) => {
+                    acc.dx += mov.dx;
+                    acc.dy += mov.dy;
+                    return acc;
+                }, {dx: 0, dy: 0});
+                
+                this.player.angle = Math.atan2(avgMovement.dy, avgMovement.dx);
+            }
+        }
+
+        updateBullets() {
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                const bullet = this.bullets[i];
+                bullet.x += Math.cos(bullet.angle) * bullet.speed;
+                bullet.y += Math.sin(bullet.angle) * bullet.speed;
+
+                if (bullet.x < 0 || bullet.x > this.canvas.width || bullet.y < 0 || bullet.y > this.canvas.height) {
+                    this.bullets.splice(i, 1);
+                }
+            }
+        }
+
+        spawnEnemy(type) {
+            let x, y;
+            const safeDistance = 200;
+            const centerSafeZone = 100;
+
+            do {
+                x = Math.random() * this.canvas.width;
+                y = Math.random() * this.canvas.height;
+            } while (
+                (Math.abs(x - this.canvas.width / 2) < centerSafeZone && Math.abs(y - this.canvas.height / 2) < centerSafeZone) ||
+                (Math.sqrt(Math.pow(x - this.player.x, 2) + Math.pow(y - this.player.y, 2)) < safeDistance)
+            );
+
+            const enemyProps = type === 'diamond' 
+                ? { size: 30, width: 18, speed: 2, color: 'cyan', points: 50, avoidBullets: false }
+                : { size: 25, speed: 3, color: 'green', points: 100, avoidBullets: true };
+
+            this.enemies.push({ x, y, type, ...enemyProps });
+        }
+
+        checkCollisions() {
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                const bullet = this.bullets[i];
+                for (let j = this.enemies.length - 1; j >= 0; j--) {
+                    const enemy = this.enemies[j];
+                    const dx = bullet.x - enemy.x;
+                    const dy = bullet.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < enemy.size) {
+                        this.bullets.splice(i, 1);
+                        this.enemies.splice(j, 1);
+                        this.score += enemy.points;
+                        this.updateUI();
+                        break;
+                    }
+                }
+            }
+
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+                const enemy = this.enemies[i];
+                const dx = this.player.x - enemy.x;
+                const dy = this.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < this.player.size / 2 + enemy.size / 2) {
+                    this.lives--;
+                    this.updateUI();
+                    if (this.lives <= 0) {
+                        alert("Game Over! Your score: " + this.score);
+                        this.resetGame();
+                    } else {
+                        this.playerDied();
+                    }
+                    break;
+                }
+            }
+        }
+
+        playerDied() {
+            this.enemies = [];
+            this.bullets = [];
+            this.player.x = this.canvas.width / 2;
+            this.player.y = this.canvas.height / 2;
+            this.player.angle = 0;
+            this.player.recentMovements = [];
+        }
+
+        resetGame() {
+            this.score = 0;
+            this.lives = 3;
+            this.enemies = [];
+            this.bullets = [];
+            this.player.x = this.canvas.width / 2;
+            this.player.y = this.canvas.height / 2;
+            this.player.angle = 0;
+            this.player.recentMovements = [];
+            this.updateUI();
+        }
+
+        updateUI() {
+            document.getElementById('score').textContent = "Score: " + this.score;
+            document.getElementById('lives').textContent = "Lives: " + this.lives;
+        }
+
+        gameLoop() {
+            this.updateBullets();
+            this.checkCollisions();
+            
+            if (Math.random() < 0.02) {
+                this.spawnEnemy(Math.random() < 0.7 ? 'diamond' : 'square');
+            }
+            
+            requestAnimationFrame(() => this.gameLoop());
+        }
+    }
+    </script>
+
+    <script>
+    function initGameMechanicsTest() {
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        GameMechanics.startGame(canvas);
+    }
+
+    window.onload = initGameMechanicsTest;
+    </script>
+</body>
+</html>

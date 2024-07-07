@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphics Module - Geometry Wars Clone</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="graphicsModule">
+    class Graphics {
+        constructor(canvas) {
+            this.ctx = canvas.getContext('2d');
+        }
+
+        drawPlayer(player) {
+            this.ctx.save();
+            this.ctx.translate(player.x, player.y);
+            this.ctx.rotate(player.angle);
+            
+            // Draw the transparent triangle with white border
+            this.ctx.beginPath();
+            this.ctx.moveTo(player.size / 2, 0);
+            this.ctx.lineTo(-player.size / 2, -player.size / 2);
+            this.ctx.lineTo(-player.size / 2, player.size / 2);
+            this.ctx.closePath();
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            // Fill the first third of the triangle
+            this.ctx.beginPath();
+            this.ctx.moveTo(player.size / 2, 0);
+            this.ctx.lineTo(-player.size / 6, -player.size / 6);
+            this.ctx.lineTo(-player.size / 6, player.size / 6);
+            this.ctx.closePath();
+            this.ctx.fillStyle = 'white';
+            this.ctx.fill();
+            
+            this.ctx.restore();
+        }
+
+        drawEnemy(enemy) {
+            this.ctx.save();
+            this.ctx.translate(enemy.x, enemy.y);
+            
+            if (enemy.type === 'diamond') {
+                // Draw the transparent narrow diamond with cyan border
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, -enemy.size);
+                this.ctx.lineTo(enemy.width, 0);
+                this.ctx.lineTo(0, enemy.size);
+                this.ctx.lineTo(-enemy.width, 0);
+                this.ctx.closePath();
+                this.ctx.strokeStyle = 'cyan';
+            } else if (enemy.type === 'square') {
+                // Draw the transparent square with green border
+                this.ctx.beginPath();
+                this.ctx.rect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
+                this.ctx.strokeStyle = 'green';
+            }
+            
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            this.ctx.restore();
+        }
+
+        drawBullet(bullet) {
+            this.ctx.strokeStyle = 'yellow';
+            this.ctx.lineWidth = bullet.thickness;
+            this.ctx.beginPath();
+            this.ctx.moveTo(bullet.x, bullet.y);
+            this.ctx.lineTo(
+                bullet.x - Math.cos(bullet.angle) * bullet.size,
+                bullet.y - Math.sin(bullet.angle) * bullet.size
+            );
+            this.ctx.stroke();
+        }
+
+        drawEnvironment() {
+            // You can add environment drawing code here if needed
+        }
+    }
+    </script>
+
+    <script>
+    function initGraphicsTest() {
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const graphics = new Graphics(canvas);
+
+        const player = { x: 400, y: 300, size: 20, angle: 0 };
+        const enemies = [
+            { x: 200, y: 200, size: 30, width: 18, type: 'diamond' },
+            { x: 600, y: 400, size: 25, type: 'square' }
+        ];
+        const bullet = { x: 300, y: 300, angle: Math.PI / 4, size: 12, thickness: 4 };
+
+        function animate() {
+            graphics.ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            graphics.drawPlayer(player);
+            enemies.forEach(enemy => graphics.drawEnemy(enemy));
+            graphics.drawBullet(bullet);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    }
+
+    window.onload = initGraphicsTest;
+    </script>
+</body>
+</html>

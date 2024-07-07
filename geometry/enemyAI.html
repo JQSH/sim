@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enemy AI Module - Geometry Wars Clone</title>
+    <link rel="stylesheet" href="https://jqsh.github.io/sim/geometry/styles.css">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+
+    <script id="enemyAIModule">
+    class EnemyAIManager {
+        constructor() {
+            this.enemyTypes = {
+                diamond: {
+                    size: 30,
+                    width: 18,
+                    speed: 2,
+                    color: 'cyan',
+                    points: 50,
+                    avoidBullets: false,
+                    spawnInterval: 2000,
+                    lastSpawnTime: 0
+                },
+                square: {
+                    size: 25,
+                    speed: 3,
+                    color: 'green',
+                    points: 100,
+                    avoidBullets: true,
+                    spawnInterval: 3000,
+                    lastSpawnTime: 0
+                }
+            };
+        }
+
+        createEnemy(type, x, y) {
+            return {
+                x: x,
+                y: y,
+                type: type,
+                ...this.enemyTypes[type]
+            };
+        }
+
+        updateEnemies(enemies, player, bullets) {
+            enemies.forEach(enemy => {
+                let dx = player.x - enemy.x;
+                let dy = player.y - enemy.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (enemy.avoidBullets) {
+                    for (let bullet of bullets) {
+                        const bulletDx = bullet.x - enemy.x;
+                        const bulletDy = bullet.y - enemy.y;
+                        const bulletDistance = Math.sqrt(bulletDx * bulletDx + bulletDy * bulletDy);
+
+                        if (bulletDistance < 100) {
+                            dx -= bulletDx * 2;
+                            dy -= bulletDy * 2;
+                        }
+                    }
+                }
+
+                const normalizedDistance = Math.sqrt(dx * dx + dy * dy);
+                dx = dx / normalizedDistance;
+                dy = dy / normalizedDistance;
+
+                enemy.x += dx * enemy.speed;
+                enemy.y += dy * enemy.speed;
+            });
+        }
+
+        checkEnemySpawns(currentTime, score) {
+            const spawnedEnemies = [];
+            
+            for (const [type, props] of Object.entries(this.enemyTypes)) {
+                if (currentTime - props.lastSpawnTime > props.spawnInterval) {
+                    if (type === 'square' && score >= 500) {
+                        spawnedEnemies.push(type);
+                    } else if (type === 'diamond') {
+                        spawnedEnemies.push(type);
+                    }
+                    props.lastSpawnTime = currentTime;
+                }
+            }
+
+            return spawnedEnemies;
+        }
+    }
+    </script>
+
+    <script>
+    function initEnemyAITest() {
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d');
+        
+        const aiManager = new EnemyAIManager();
+        const enemies = [
+            aiManager.createEnemy('diamond', 100, 100),
+            aiManager.createEnemy('square', 200, 200)
+        ];
+        const player = { x: 300, y: 300 };
+        const bullets = [];
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            aiManager.updateEnemies(enemies, player, bullets);
+            
+            // Simple rendering for test purposes
+            enemies.forEach(enemy => {
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.size / 2, 0, Math.PI * 2);
+                ctx.strokeStyle = enemy.color;
+                ctx.stroke();
+            });
+
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+
+            requestAnimationFrame(update);
+        }
+
+        update();
+
+        // Test enemy spawning
+        setInterval(() => {
+            const currentTime = Date.now();
+            const score = 600; // Test score above 500 to spawn square enemies
+            const spawnedEnemies = aiManager.checkEnemySpawns(currentTime, score);
+            spawnedEnemies.forEach(type => {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                enemies.push(aiManager.createEnemy(type, x, y));
+            });
+        }, 1000);
+    }
+
+    window.onload = initEnemyAITest;
+    </script>
+</body>
+</html>
