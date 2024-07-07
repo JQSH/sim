@@ -21,6 +21,26 @@
 
     <script src="https://jqsh.github.io/sim/geometry/config.js"></script>
     <script src="https://jqsh.github.io/sim/geometry/utils.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/graphics.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/gameMechanics.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/enemyAI.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/ui.js"></script>
+    <script src="https://jqsh.github.io/sim/geometry/audio.js"></script>
+    
+    <script>
+        window.onload = () => {
+            const canvas = document.getElementById('gameCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+
+            GameMechanics.startGame(canvas);
+        };
+    </script>
 
     <script id="inputModule">
     class ControllerInputManager {
@@ -133,31 +153,6 @@
             return this.gamepad ? this.gamepad.buttons[0].pressed : this.keys['Space'];
         }
     }
-    </script>
-
-    <script>
-    function initInputTest() {
-        const canvas = document.getElementById('gameCanvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        
-        const input = new InputManager();
-        const movementDisplay = document.getElementById('movement');
-        const shootingDisplay = document.getElementById('shooting');
-
-        function updateDisplay() {
-            input.update();
-            const movement = input.getMovement();
-            const shooting = input.getShootingDirection();
-            movementDisplay.textContent = `Movement: X=${movement.x.toFixed(2)}, Y=${movement.y.toFixed(2)}`;
-            shootingDisplay.textContent = `Shooting: X=${shooting.x.toFixed(2)}, Y=${shooting.y.toFixed(2)}`;
-            requestAnimationFrame(updateDisplay);
-        }
-
-        updateDisplay();
-    }
-
-    window.onload = initInputTest;
     </script>
 </body>
 </html>

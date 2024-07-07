@@ -171,8 +171,10 @@ class GameMechanics {
         this.updateBullets();
         this.checkCollisions();
 
-        this.ui.updateScore(this.score);
-        this.ui.updateLives(this.lives);
+        if (this.ui) {
+            this.ui.updateScore(this.score);
+            this.ui.updateLives(this.lives);
+        }
     }
 
     render() {

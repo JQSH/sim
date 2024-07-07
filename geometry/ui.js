@@ -5,11 +5,15 @@ class UI {
     }
 
     updateScore(score) {
-        this.scoreElement.textContent = `Score: ${score}`;
+        if (this.scoreElement) {
+            this.scoreElement.textContent = `Score: ${score}`;
+        }
     }
 
     updateLives(lives) {
-        this.livesElement.textContent = `Lives: ${lives}`;
+        if (this.livesElement) {
+            this.livesElement.textContent = `Lives: ${lives}`;
+        }
     }
 
     showGameOver(finalScore) {
