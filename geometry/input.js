@@ -1,3 +1,4 @@
+
 class ControllerInputManager {
     constructor() {
         this.sensitivity = 1.4;
@@ -105,6 +106,11 @@ class InputManager {
     }
 
     isFirePressed() {
-        return this.gamepad ? this.gamepad.buttons[0].pressed : this.keys['Space'];
+        if (this.gamepad) {
+            const shootingDir = this.controllerManager.getShootingDirection(this.gamepad);
+            return Math.abs(shootingDir.x) > 0.1 || Math.abs(shootingDir.y) > 0.1;
+        } else {
+            return this.keys['Space'];
+        }
     }
 }
