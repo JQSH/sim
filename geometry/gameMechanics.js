@@ -74,7 +74,8 @@ class GameMechanics {
             x: this.player.x + Math.cos(shootAngle) * this.player.size,
             y: this.player.y + Math.sin(shootAngle) * this.player.size,
             angle: shootAngle,
-            speed: CONFIG.BULLET_SPEED
+            speed: CONFIG.BULLET_SPEED,
+            color: '#ffffff' // Add a default color (white in this case)
         });
     }
 

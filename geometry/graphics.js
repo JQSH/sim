@@ -218,6 +218,10 @@ class Graphics {
 
     drawBullet(bullet) {
         const { x, y, width, height, cornerRadius, color } = bullet;
+
+
+        // Use a default color if the bullet color is invalid
+        const bulletColor = color && this.hexToRgb(color) ? color : '#fffff';
         
         this.ctx.save();
         this.ctx.translate(x, y);
@@ -234,7 +238,7 @@ class Graphics {
         };
     
         // Draw glow
-        const rgb = this.hexToRgb(color);
+        const rgb = this.hexToRgb(bulletColor);
         this.ctx.shadowBlur = 9 / 2;
         this.ctx.shadowColor = color;
     
