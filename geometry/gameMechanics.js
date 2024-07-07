@@ -7,6 +7,12 @@ class GameMechanics {
         this.score = 0;
         this.lives = 3;
         this.lastFireTime = 0;
+
+        this.graphics = new Graphics(canvas);
+        this.input = new InputManager();
+        this.enemyAI = new EnemyAIManager();
+        this.ui = new UI();
+        this.audio = new AudioManager();
     }
 
     static startGame(canvas) {
@@ -84,26 +90,6 @@ class GameMechanics {
         }
     }
 
-    spawnEnemy(type) {
-        let x, y;
-        const safeDistance = 200;
-        const centerSafeZone = 100;
-
-        do {
-            x = Math.random() * this.canvas.width;
-            y = Math.random() * this.canvas.height;
-        } while (
-            (Math.abs(x - this.canvas.width / 2) < centerSafeZone && Math.abs(y - this.canvas.height / 2) < centerSafeZone) ||
-            (Math.sqrt(Math.pow(x - this.player.x, 2) + Math.pow(y - this.player.y, 2)) < safeDistance)
-        );
-
-        const enemyProps = type === 'diamond' 
-            ? { size: 30, width: 18, speed: 2, color: 'cyan', points: 50, avoidBullets: false }
-            : { size: 25, speed: 3, color: 'green', points: 100, avoidBullets: true };
-
-        this.enemies.push({ x, y, type, ...enemyProps });
-    }
-
     checkCollisions() {
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
@@ -163,14 +149,43 @@ class GameMechanics {
         this.player.recentMovements = [];
     }
 
-    gameLoop() {
+    update() {
+        this.input.update();
+        const movement = this.input.getMovement();
+        const shootingDirection = this.input.getShootingDirection();
+
+        this.updatePlayer(movement);
+        if (this.input.isFirePressed()) {
+            this.shootBullet(shootingDirection);
+        }
+
+        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
+        
+        const currentTime = Date.now();
+        const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
+        spawnedEnemies.forEach(type => {
+            const enemy = this.enemyAI.spawnEnemy(type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
+            this.enemies.push(enemy);
+        });
+
         this.updateBullets();
         this.checkCollisions();
-        
-        if (Math.random() < 0.02) {
-            this.spawnEnemy(Math.random() < 0.7 ? 'diamond' : 'square');
-        }
-        
+
+        this.ui.updateScore(this.score);
+        this.ui.updateLives(this.lives);
+    }
+
+    render() {
+        this.graphics.clear();
+        this.graphics.drawEnvironment();
+        this.graphics.drawPlayer(this.player);
+        this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
+        this.bullets.forEach(bullet => this.graphics.drawBullet(bullet));
+    }
+
+    gameLoop() {
+        this.update();
+        this.render();
         requestAnimationFrame(() => this.gameLoop());
     }
 }
