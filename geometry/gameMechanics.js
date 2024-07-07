@@ -153,7 +153,7 @@ class GameMechanics {
         this.player.recentMovements = [];
     }
 
-    update() {
+    update(deltaTime) {
         this.input.update();
         const movement = this.input.getMovement();
         const shootingDirection = this.input.getShootingDirection();
@@ -162,6 +162,8 @@ class GameMechanics {
         if (this.input.isFirePressed()) {
             this.shootBullet(shootingDirection);
         }
+
+        this.graphics.updateAnimation(deltaTime);
 
         this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
         
