@@ -119,12 +119,32 @@ class Graphics {
     }
 
     hexToRgb(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? {
-            r: parseInt(result[1], 16),
-            g: parseInt(result[2], 16),
-            b: parseInt(result[3], 16)
-        } : null;
+        // Remove the hash at the start if it's there
+        hex = hex.replace(/^#/, '');
+    
+        // Parse the hex string
+        let r, g, b;
+    
+        if (hex.length === 3) {
+            // 3-digit hex
+            r = parseInt(hex.charAt(0) + hex.charAt(0), 16);
+            g = parseInt(hex.charAt(1) + hex.charAt(1), 16);
+            b = parseInt(hex.charAt(2) + hex.charAt(2), 16);
+        } else if (hex.length === 6) {
+            // 6-digit hex
+            r = parseInt(hex.substring(0, 2), 16);
+            g = parseInt(hex.substring(2, 4), 16);
+            b = parseInt(hex.substring(4, 6), 16);
+        } else {
+            throw new Error('Invalid hex color format');
+        }
+    
+        // Ensure r, g, b are within valid range
+        r = Math.min(255, Math.max(0, r));
+        g = Math.min(255, Math.max(0, g));
+        b = Math.min(255, Math.max(0, b));
+    
+        return { r, g, b };
     }
 
     drawWithGlow(drawFunction, x, y, size, angle, color) {
@@ -217,12 +237,18 @@ class Graphics {
     }
 
     drawBullet(bullet) {
-        const { x, y, width, height, cornerRadius, color } = bullet;
-
-
-        // Use a default color if the bullet color is invalid
-        const bulletColor = color && this.hexToRgb(color) ? color : '#fffff';
-        
+        // Ensure bullet object exists and has necessary properties
+        if (!bullet || typeof bullet.x !== 'number' || typeof bullet.y !== 'number') {
+            console.warn('Invalid bullet object:', bullet);
+            return; // Skip drawing this bullet
+        }
+    
+        const { x, y } = bullet;
+        const width = bullet.width || 5;  // Default width if not specified
+        const height = bullet.height || 2;  // Default height if not specified
+        const cornerRadius = bullet.cornerRadius || 1;  // Default corner radius if not specified
+        const color = bullet.color || '#ffffff';  // Default to white if color not specified
+    
         this.ctx.save();
         this.ctx.translate(x, y);
     
@@ -238,17 +264,24 @@ class Graphics {
         };
     
         // Draw glow
-        const rgb = this.hexToRgb(bulletColor);
-        this.ctx.shadowBlur = 9 / 2;
-        this.ctx.shadowColor = color;
+        let rgb;
+        try {
+            rgb = this.hexToRgb(color);
+        } catch (error) {
+            console.warn('Error parsing bullet color:', color, error);
+            rgb = { r: 255, g: 255, b: 255 };  // Fallback to white
+        }
     
-        for (let i = 0; i < 20; i++) {
+        this.ctx.shadowBlur = 4;
+        this.ctx.shadowColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+    
+        for (let i = 0; i < 3; i++) {
             this.ctx.beginPath();
             drawBulletShape(this.ctx);
             
-            const alpha = (0.85 / 20) * Math.pow(1 - i / 20, 2);
+            const alpha = 0.3 * (1 - i / 3);
             this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-            this.ctx.lineWidth = 9 * (1 - i / 20);
+            this.ctx.lineWidth = 3 * (1 - i / 3);
             this.ctx.stroke();
         }
     
@@ -260,7 +293,7 @@ class Graphics {
         this.ctx.fillStyle = color;
         this.ctx.fill();
         this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 1;
         this.ctx.stroke();
     
         this.ctx.restore();
