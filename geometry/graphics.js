@@ -216,10 +216,12 @@ class Graphics {
         }
     }
 
-    drawBullet(x, y, width, height, cornerRadius, color) {
+    drawBullet(bullet) {
+        const { x, y, width, height, cornerRadius, color } = bullet;
+        
         this.ctx.save();
         this.ctx.translate(x, y);
-
+    
         const drawBulletShape = (ctx) => {
             ctx.moveTo(width, 0);
             ctx.arcTo(width, height/2, width - cornerRadius, height/2, cornerRadius);
@@ -230,12 +232,12 @@ class Graphics {
             ctx.arcTo(width, -height/2, width, 0, cornerRadius);
             ctx.closePath();
         };
-
+    
         // Draw glow
         const rgb = this.hexToRgb(color);
         this.ctx.shadowBlur = 9 / 2;
         this.ctx.shadowColor = color;
-
+    
         for (let i = 0; i < 20; i++) {
             this.ctx.beginPath();
             drawBulletShape(this.ctx);
@@ -245,9 +247,9 @@ class Graphics {
             this.ctx.lineWidth = 9 * (1 - i / 20);
             this.ctx.stroke();
         }
-
+    
         this.ctx.shadowBlur = 0;
-
+    
         // Draw and fill actual bullet
         this.ctx.beginPath();
         drawBulletShape(this.ctx);
@@ -256,7 +258,7 @@ class Graphics {
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = 2;
         this.ctx.stroke();
-
+    
         this.ctx.restore();
     }
 
