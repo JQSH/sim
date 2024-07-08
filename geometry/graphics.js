@@ -242,40 +242,53 @@ class Graphics {
             this.drawWithGlow(drawSquareShape, enemy.x, enemy.y, enemy.size, 0, '#00ff00');
         }
     }
-
     drawBullet(x, y, angle) {
-        const width = 13;
-        const height = 12;
-        const cornerRadius = 6;
+        const width = 12;
+        const height = 7;
+        const frontPointiness = 1;
+        const rearPointiness = 0.34;
+        const sideIndent = 0;
         const color = '#ffff00';
+        const glowSize = 9;
+        const glowIntensity = 0.85;
     
         this.ctx.save();
         this.ctx.translate(x, y);
         this.ctx.rotate(angle);
     
         const drawBulletShape = (ctx) => {
+            const frontTip = width * (1 - frontPointiness);
+            const rearTip = width * (1 - rearPointiness);
+            const sideDepth = height * sideIndent / 2;
+    
             ctx.moveTo(width, 0);
-            ctx.arcTo(width, height/2, width - cornerRadius, height/2, cornerRadius);
-            ctx.lineTo(-width + cornerRadius, height/2);
-            ctx.arcTo(-width, height/2, -width, 0, cornerRadius);
-            ctx.arcTo(-width, -height/2, -width + cornerRadius, -height/2, cornerRadius);
-            ctx.lineTo(width - cornerRadius, -height/2);
-            ctx.arcTo(width, -height/2, width, 0, cornerRadius);
+            ctx.quadraticCurveTo(width, height/2, frontTip, height/2);
+            ctx.lineTo(-rearTip, height/2);
+            ctx.quadraticCurveTo(-width, height/2, -width, 0);
+            ctx.quadraticCurveTo(-width, -height/2, -rearTip, -height/2);
+            ctx.lineTo(frontTip, -height/2);
+            ctx.quadraticCurveTo(width, -height/2, width, 0);
+    
+            if (sideIndent > 0) {
+                ctx.quadraticCurveTo(width/2, sideDepth, 0, sideDepth);
+                ctx.quadraticCurveTo(-width/2, sideDepth, -width, 0);
+            }
+    
             ctx.closePath();
         };
     
         // Draw glow
         const rgb = this.hexToRgb(color);
-        this.ctx.shadowBlur = 9 / 2;
+        this.ctx.shadowBlur = glowSize / 2;
         this.ctx.shadowColor = color;
     
         for (let i = 0; i < 20; i++) {
             this.ctx.beginPath();
             drawBulletShape(this.ctx);
             
-            const alpha = (0.85 / 20) * Math.pow(1 - i / 20, 2);
+            const alpha = (glowIntensity / 20) * Math.pow(1 - i / 20, 2);
             this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-            this.ctx.lineWidth = 9 * (1 - i / 20);
+            this.ctx.lineWidth = glowSize * (1 - i / 20);
             this.ctx.stroke();
         }
     
