@@ -100,6 +100,7 @@ class GameMechanics {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < enemy.size) {
                     this.bullets.splice(i, 1);
+                    this.graphics.createShatterEffect(enemy);
                     this.enemies.splice(j, 1);
                     this.score += enemy.points;
                     break;
@@ -183,6 +184,7 @@ class GameMechanics {
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
         this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
+        this.graphics.drawShatterParticles();
     }
 
     gameLoop() {
