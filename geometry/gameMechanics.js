@@ -100,7 +100,6 @@ class GameMechanics {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < enemy.size) {
                     this.bullets.splice(i, 1);
-                    this.graphics.createShatterEffect(enemy); // Add this line
                     this.enemies.splice(j, 1);
                     this.score += enemy.points;
                     break;
@@ -150,7 +149,7 @@ class GameMechanics {
         this.player.recentMovements = [];
     }
 
-    update(deltaTime) {
+    update() {
         this.input.update();
         const movement = this.input.getMovement();
         const shootingDirection = this.input.getShootingDirection();
@@ -161,7 +160,6 @@ class GameMechanics {
         }
 
         this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
-        this.graphics.updateAnimation(deltaTime);
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
@@ -185,14 +183,11 @@ class GameMechanics {
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
         this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
-        this.graphics.drawShatterParticles();
     }
-    gameLoop(timestamp) {
-        const deltaTime = (timestamp - this.lastTimestamp) / 1000;
-        this.lastTimestamp = timestamp;
-    
-        this.update(deltaTime);
+
+    gameLoop() {
+        this.update();
         this.render();
-        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
+        requestAnimationFrame(() => this.gameLoop());
     }
 }
