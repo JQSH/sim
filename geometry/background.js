@@ -1,17 +1,12 @@
-
-class CyberpunkGrid {
+class Background {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.resize();
         this.init();
-
-        window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
     }
@@ -39,7 +34,6 @@ class CyberpunkGrid {
         this.interactionPoints = [];
     }
 
-    // Method to allow external objects to interact with the grid
     interact(x, y, mass) {
         this.interactionPoints.push({ x, y, mass });
     }
@@ -67,7 +61,6 @@ class CyberpunkGrid {
             point.y = point.originY + point.dy;
         });
 
-        // Clear interaction points for the next frame
         this.interactionPoints = [];
     }
 
@@ -75,7 +68,6 @@ class CyberpunkGrid {
         this.ctx.fillStyle = 'rgba(0, 0, 20, 0.1)';
         this.ctx.fillRect(0, 0, this.width, this.height);
         
-        // Draw warped grid
         for (let y = 0; y < this.rows; y++) {
             for (let x = 0; x < this.cols; x++) {
                 const p0 = this.points[y * (this.cols + 1) + x];
@@ -101,7 +93,6 @@ class CyberpunkGrid {
             }
         }
 
-        // Draw glowing intersections
         this.points.forEach(point => {
             this.ctx.beginPath();
             this.ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
@@ -110,36 +101,3 @@ class CyberpunkGrid {
         });
     }
 }
-
-// Global variable to store the grid instance
-let cyberpunkGrid;
-
-function initCyberpunkGridTest() {
-    const canvas = document.getElementById('gameCanvas');
-    cyberpunkGrid = new CyberpunkGrid(canvas);
-
-    function animate() {
-        cyberpunkGrid.update();
-        cyberpunkGrid.draw();
-        requestAnimationFrame(animate);
-    }
-
-    animate();
-
-    // Simulate external interactions
-    setInterval(() => {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const mass = Math.random() * 20 + 10;
-        cyberpunkGrid.interact(x, y, mass);
-    }, 1000);
-}
-
-window.onload = initCyberpunkGridTest;
-
-// Expose the interact method globally so it can be called from other parts of the code
-window.interactWithGrid = (x, y, mass) => {
-    if (cyberpunkGrid) {
-        cyberpunkGrid.interact(x, y, mass);
-    }
-};

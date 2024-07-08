@@ -183,7 +183,7 @@ class GameMechanics {
 
     render() {
         this.graphics.clear();
-        this.background.draw();  // Draw background first
+        this.background.draw();
         this.graphics.drawEnvironment();
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
