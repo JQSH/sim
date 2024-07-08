@@ -32,33 +32,41 @@ class EnemyAIManager {
         };
     }
 
-    updateEnemies(enemies, player, bullets) {
+    updateEnemies(enemies, player, bullets, background) {
         enemies.forEach(enemy => {
             let dx = player.x - enemy.x;
             let dy = player.y - enemy.y;
             let distance = Math.sqrt(dx * dx + dy * dy);
-
+    
             if (enemy.avoidBullets) {
                 // Check for nearby bullets and avoid them
                 for (let bullet of bullets) {
                     const bulletDx = bullet.x - enemy.x;
                     const bulletDy = bullet.y - enemy.y;
                     const bulletDistance = Math.sqrt(bulletDx * bulletDx + bulletDy * bulletDy);
-
+    
                     if (bulletDistance < 100) { // Adjust this value to change avoidance range
                         dx -= bulletDx * 2; // Adjust these multipliers to change avoidance strength
                         dy -= bulletDy * 2;
                     }
                 }
             }
-
+    
             // Normalize the direction
             const normalizedDistance = Math.sqrt(dx * dx + dy * dy);
             dx = dx / normalizedDistance;
             dy = dy / normalizedDistance;
-
+    
+            const oldX = enemy.x;
+            const oldY = enemy.y;
+    
             enemy.x += dx * enemy.speed;
             enemy.y += dy * enemy.speed;
+    
+            // Only interact with the background if the enemy has moved
+            if (enemy.x !== oldX || enemy.y !== oldY) {
+                background.interact(enemy.x, enemy.y, 0.5); // You can adjust the 0.5 value as needed
+            }
         });
     }
 

@@ -41,6 +41,10 @@ class GameMechanics {
         
         this.player.x = Math.max(this.player.size / 2, Math.min(this.canvas.width - this.player.size / 2, this.player.x));
         this.player.y = Math.max(this.player.size / 2, Math.min(this.canvas.height - this.player.size / 2, this.player.y));
+
+        if (movement.x !== 0 || movement.y !== 0) {
+            this.background.interact(this.player.x, this.player.y, 1);
+        }
         
         if (dx !== 0 || dy !== 0) {
             this.player.recentMovements.push({dx, dy});
@@ -160,8 +164,7 @@ class GameMechanics {
         if (this.input.isFirePressed()) {
             this.shootBullet(shootingDirection);
         }
-
-        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
+        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
         this.graphics.updateAnimation();
         this.background.update();
         
