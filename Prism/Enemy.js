@@ -2,9 +2,19 @@ class Enemy {
     constructor(scene) {
         this.scene = scene;
         this.mesh = null;
+        this.inUse = false;
+        this.type = '';
+        this.speed = 0;
+        this.points = 0;
+        this.avoidBullets = false;
     }
 
     init(type, x, y, properties) {
+        this.type = type;
+        this.speed = properties.speed;
+        this.points = properties.points;
+        this.avoidBullets = properties.avoidBullets;
+
         if (this.mesh) {
             this.scene.remove(this.mesh);
         }
@@ -29,19 +39,19 @@ class Enemy {
         this.mesh.position.set(x, y, 0);
         this.scene.add(this.mesh);
 
-        this.type = type;
-        this.speed = properties.speed;
-        this.points = properties.points;
-        this.avoidBullets = properties.avoidBullets;
+        this.inUse = true;
     }
 
     update(playerPosition, bullets) {
+        if (!this.inUse || !this.mesh) return;
+
         const direction = new THREE.Vector3()
             .subVectors(playerPosition, this.mesh.position)
             .normalize();
 
         if (this.avoidBullets) {
             for (const bullet of bullets) {
+                if (!bullet.mesh) continue;
                 const bulletDirection = new THREE.Vector3()
                     .subVectors(bullet.mesh.position, this.mesh.position);
                 const distance = bulletDirection.length();
@@ -56,10 +66,18 @@ class Enemy {
         this.mesh.position.add(direction);
     }
 
+    checkCollision(bullet) {
+        if (!this.inUse || !this.mesh || !bullet.mesh) return false;
+
+        const distance = this.mesh.position.distanceTo(bullet.mesh.position);
+        return distance < (this.mesh.geometry.parameters.width || this.mesh.geometry.parameters.radius || 0.5) / 2;
+    }
+
     reset() {
         if (this.mesh) {
             this.scene.remove(this.mesh);
             this.mesh = null;
         }
+        this.inUse = false;
     }
 }

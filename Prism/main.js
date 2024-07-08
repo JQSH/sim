@@ -22,11 +22,6 @@ class Game {
             this.bulletPool.push(new Bullet(this.scene));
         }
 
-        this.enemyPool = [];
-        for (let i = 0; i < CONFIG.INITIAL_ENEMY_POOL_SIZE; i++) {
-            this.enemyPool.push(new Enemy(this.scene));
-        }
-
         this.init();
         this.animate();
     }
@@ -55,25 +50,28 @@ class Game {
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
         spawnedEnemies.forEach(type => {
-            const enemyData = this.enemyAI.spawnEnemy(type, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT, this.player.mesh.position.x, this.player.mesh.position.y);
-            const enemy = this.getEnemyFromPool();
-            enemy.init(type, enemyData.x, enemyData.y, this.enemyAI.enemyTypes[type]);
+            this.enemyAI.spawnEnemyAtRandomPosition(type);
         });
 
-        this.enemyAI.updateEnemies(this.player.mesh.position, this.bulletPool.filter(b => b.mesh.visible));
+        const activeBullets = this.bulletPool.filter(b => b.inUse);
+        this.enemyAI.updateEnemies(activeBullets);
 
         this.checkCollisions();
 
         this.graphics.updateShatterParticles();
-        this.graphics.updateBulletTrails(this.bulletPool.filter(b => b.mesh.visible));
+        this.graphics.updateBulletTrails(activeBullets);
 
         this.background.interact(this.player.mesh.position.x, this.player.mesh.position.y, 1);
-        this.bulletPool.filter(b => b.mesh.visible).forEach(bullet => {
-            this.background.interact(bullet.mesh.position.x, bullet.mesh.position.y, 0.5);
-            bullet.update();
+        activeBullets.forEach(bullet => {
+            if (bullet.mesh) {
+                this.background.interact(bullet.mesh.position.x, bullet.mesh.position.y, 0.5);
+                bullet.update();
+            }
         });
         this.enemyAI.enemies.forEach(enemy => {
-            this.background.interact(enemy.mesh.position.x, enemy.mesh.position.y, 0.5);
+            if (enemy.mesh) {
+                this.background.interact(enemy.mesh.position.x, enemy.mesh.position.y, 0.5);
+            }
         });
 
         this.ui.updateScore(this.score);
@@ -82,40 +80,39 @@ class Game {
 
     shootBullet() {
         const bullet = this.getBulletFromPool();
-        const direction = new THREE.Vector3(
-            Math.cos(this.player.mesh.rotation.z + Math.PI / 2),
-            Math.sin(this.player.mesh.rotation.z + Math.PI / 2),
-            0
-        );
-        bullet.init(this.player.mesh.position, direction);
+        if (bullet) {
+            const direction = new THREE.Vector3(
+                Math.cos(this.player.mesh.rotation.z + Math.PI / 2),
+                Math.sin(this.player.mesh.rotation.z + Math.PI / 2),
+                0
+            );
+            bullet.init(this.player.mesh.position, direction);
+        }
     }
 
     getBulletFromPool() {
-        return this.bulletPool.find(b => !b.mesh.visible) || this.bulletPool[0];
-    }
-
-    getEnemyFromPool() {
-        return this.enemyPool.find(e => !e.mesh) || this.enemyPool[0];
+        return this.bulletPool.find(b => !b.inUse);
     }
 
     checkCollisions() {
-        const activeBullets = this.bulletPool.filter(b => b.mesh.visible);
-        const activeEnemies = this.enemyAI.enemies;
+        const activeBullets = this.bulletPool.filter(b => b.inUse);
 
-        for (const bullet of activeBullets) {
-            for (const enemy of activeEnemies) {
-                if (bullet.mesh.position.distanceTo(enemy.mesh.position) < enemy.mesh.geometry.parameters.width / 2) {
-                    this.score += enemy.points;
-                    this.graphics.createShatterEffect(enemy.mesh);
-                    enemy.reset();
-                    bullet.reset();
-                    break;
-                }
+        const enemyDestroyed = this.enemyAI.checkCollisions(activeBullets, (points, position) => {
+            this.score += points;
+            this.graphics.createShatterEffect(position);
+        });
+
+        if (enemyDestroyed) {
+            // Remove the collided bullet
+            const collidedBullet = activeBullets.find(b => !b.inUse);
+            if (collidedBullet) {
+                collidedBullet.reset();
             }
         }
 
-        for (const enemy of activeEnemies) {
-            if (this.player.mesh.position.distanceTo(enemy.mesh.position) < (this.player.mesh.geometry.parameters.radius + enemy.mesh.geometry.parameters.width / 2)) {
+        // Check for player-enemy collisions
+        for (const enemy of this.enemyAI.enemies) {
+            if (enemy.mesh && this.player.checkCollision(enemy)) {
                 this.lives--;
                 if (this.lives <= 0) {
                     this.gameOver();
@@ -148,4 +145,7 @@ class Game {
     }
 }
 
-const game = new Game();
+// Initialize the game when the window loads
+window.onload = () => {
+    window.game = new Game();
+};
