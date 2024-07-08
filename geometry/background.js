@@ -86,36 +86,50 @@ class Background {
     }
 
     draw() {
-        this.offscreenCtx.fillStyle = `rgba(0, 0, 0, ${this.fadeSpeed})`;
-        this.offscreenCtx.fillRect(0, 0, this.width, this.height);
-
-        this.offscreenCtx.strokeStyle = 'rgba(25, 25, 112, 0.5)';
-        this.offscreenCtx.shadowColor = 'rgb(25, 25, 112)';
-
+        // Clear the offscreen canvas completely
+        this.offscreenCtx.clearRect(0, 0, this.width, this.height);
+        
+        // Set up the line style
+        this.offscreenCtx.strokeStyle = 'rgba(25, 25, 112, 0.5)'; // Dark royal blue with 50% opacity
         this.offscreenCtx.lineWidth = this.lineWidth;
+        this.offscreenCtx.shadowColor = 'rgb(25, 25, 112)'; // Solid dark royal blue for the glow
         this.offscreenCtx.shadowBlur = this.glowIntensity;
-
+    
+        // Draw the grid lines
         this.offscreenCtx.beginPath();
-        for (let y = 0; y < this.rows - 1; y++) {
-            for (let x = 0; x < this.cols - 1; x++) {
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
                 const i = (y * this.cols + x) * 4;
                 const x1 = this.points[i];
                 const y1 = this.points[i + 1];
-                const x2 = this.points[i + 4];
-                const y2 = this.points[i + 5];
-                const x3 = this.points[i + this.cols * 4];
-                const y3 = this.points[i + this.cols * 4 + 1];
-
-                this.offscreenCtx.moveTo(x1, y1);
-                this.offscreenCtx.lineTo(x2, y2);
-                this.offscreenCtx.moveTo(x1, y1);
-                this.offscreenCtx.lineTo(x3, y3);
+    
+                // Draw horizontal line
+                if (x < this.cols - 1) {
+                    const x2 = this.points[i + 4];
+                    const y2 = this.points[i + 5];
+                    this.offscreenCtx.moveTo(x1, y1);
+                    this.offscreenCtx.lineTo(x2, y2);
+                }
+    
+                // Draw vertical line
+                if (y < this.rows - 1) {
+                    const x3 = this.points[i + this.cols * 4];
+                    const y3 = this.points[i + this.cols * 4 + 1];
+                    this.offscreenCtx.moveTo(x1, y1);
+                    this.offscreenCtx.lineTo(x3, y3);
+                }
             }
         }
         this.offscreenCtx.stroke();
-
+    
+        // Reset shadow blur
         this.offscreenCtx.shadowBlur = 0;
-
+    
+        // Apply fade effect
+        this.ctx.fillStyle = `rgba(0, 0, 0, ${this.fadeSpeed})`;
+        this.ctx.fillRect(0, 0, this.width, this.height);
+    
+        // Draw the offscreen canvas onto the main canvas
         this.ctx.drawImage(this.offscreenCanvas, 0, 0);
     }
 }
