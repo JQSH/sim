@@ -9,6 +9,7 @@ class GameMechanics {
         this.lastFireTime = 0;
 
         this.graphics = new Graphics(canvas);
+        this.background = new Background(canvas);
         this.input = new InputManager();
         this.enemyAI = new EnemyAIManager();
         this.ui = new UI();
@@ -162,6 +163,7 @@ class GameMechanics {
 
         this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
         this.graphics.updateAnimation();
+        this.background.update();
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
@@ -181,6 +183,7 @@ class GameMechanics {
 
     render() {
         this.graphics.clear();
+        this.background.draw();  // Draw background first
         this.graphics.drawEnvironment();
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
