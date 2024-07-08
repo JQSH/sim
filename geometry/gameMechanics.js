@@ -75,7 +75,6 @@ class GameMechanics {
             y: this.player.y + Math.sin(shootAngle) * this.player.size,
             angle: shootAngle,
             speed: CONFIG.BULLET_SPEED,
-            color: '#ffffff' // You can change this color if you want
         });
     }
 
@@ -183,7 +182,7 @@ class GameMechanics {
         this.graphics.drawEnvironment();
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
-        this.bullets.forEach(bullet => this.graphics.drawBullet(bullet));
+        this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
     }
 
     gameLoop() {

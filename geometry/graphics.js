@@ -243,15 +243,15 @@ class Graphics {
         }
     }
 
-    drawBullet(bullet) {
-        const width = 5;  // Default width if not specified
-        const height = 2;  // Default height if not specified
-        const cornerRadius = 1;  // Default corner radius if not specified
-        const color = bullet.color || '#ffffff';  // Default to white if color not specified
+    drawBullet(x, y, angle) {
+        const width = 13;
+        const height = 12;
+        const cornerRadius = 6;
+        const color = '#ffff00';
     
         this.ctx.save();
-        this.ctx.translate(bullet.x, bullet.y);
-        this.ctx.rotate(bullet.angle);
+        this.ctx.translate(x, y);
+        this.ctx.rotate(angle);
     
         const drawBulletShape = (ctx) => {
             ctx.moveTo(width, 0);
@@ -266,16 +266,16 @@ class Graphics {
     
         // Draw glow
         const rgb = this.hexToRgb(color);
-        this.ctx.shadowBlur = 4;
+        this.ctx.shadowBlur = 9 / 2;
         this.ctx.shadowColor = color;
     
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 20; i++) {
             this.ctx.beginPath();
             drawBulletShape(this.ctx);
             
-            const alpha = 0.3 * (1 - i / 3);
+            const alpha = (0.85 / 20) * Math.pow(1 - i / 20, 2);
             this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-            this.ctx.lineWidth = 3 * (1 - i / 3);
+            this.ctx.lineWidth = 9 * (1 - i / 20);
             this.ctx.stroke();
         }
     
@@ -287,12 +287,11 @@ class Graphics {
         this.ctx.fillStyle = color;
         this.ctx.fill();
         this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 1;
+        this.ctx.lineWidth = 2;
         this.ctx.stroke();
     
         this.ctx.restore();
     }
-
     drawEnvironment() {
         // You can add environment drawing code here if needed
     }
