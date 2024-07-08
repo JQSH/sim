@@ -30,7 +30,7 @@ class Background {
         this.forceMultiplier = 10000;
         this.effectRadius = 338;
         this.fadeSpeed = 0.15;
-        this.elasticity = 0.4;
+        this.elasticity = 0.55;
         this.lineWidth = 1.5;
         this.glowIntensity = 7;
 
@@ -88,11 +88,12 @@ class Background {
     draw() {
         this.offscreenCtx.fillStyle = `rgba(0, 0, 0, ${this.fadeSpeed})`;
         this.offscreenCtx.fillRect(0, 0, this.width, this.height);
-        
-        this.offscreenCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+
+        this.offscreenCtx.strokeStyle = 'rgba(25, 25, 112, 0.5)';
+        this.offscreenCtx.shadowColor = 'rgb(25, 25, 112)';
+
         this.offscreenCtx.lineWidth = this.lineWidth;
         this.offscreenCtx.shadowBlur = this.glowIntensity;
-        this.offscreenCtx.shadowColor = 'white';
 
         this.offscreenCtx.beginPath();
         for (let y = 0; y < this.rows - 1; y++) {
