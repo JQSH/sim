@@ -73,9 +73,13 @@ class Graphics {
         });
     }
 
-    updateAnimation(deltaTime) {
+    updateAnimation() {
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+        this.lastUpdateTime = currentTime;
+    
         this.animationTime += deltaTime * 1.5;
-        this.updateShatterParticles(deltaTime);
+        this.updateShatterParticles();
     }
 
     hexToRgb(hex) {
