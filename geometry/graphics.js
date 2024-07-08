@@ -6,6 +6,7 @@ class Graphics {
         this.animationTime = 0;
         this.shatterParticles = [];
         this.updateSettings();
+        this.lastUpdateTime = Date.now();
     }
 
     updateSettings() {
@@ -206,6 +207,12 @@ class Graphics {
     }
 
     drawEnemy(enemy) {
+        const currentTime = Date.now();
+        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
+        this.lastUpdateTime = currentTime;
+        
+        this.animationTime += deltaTime * 1.5;
+    
         if (enemy.type === 'diamond') {
             const drawDiamondShape = (ctx, size) => {
                 const scaleFactor = 1.6;
@@ -218,7 +225,7 @@ class Graphics {
                 const halfHeight = height / 2;
                 const maxRadius = Math.min(halfWidth, halfHeight) / 2;
                 const radius = Math.min(2, maxRadius);
-
+    
                 ctx.moveTo(0, -halfHeight);
                 ctx.lineTo(halfWidth - radius, -radius);
                 ctx.quadraticCurveTo(halfWidth, 0, halfWidth - radius, radius);
