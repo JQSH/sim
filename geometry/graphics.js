@@ -6,6 +6,12 @@ class Graphics {
         this.shatterParticles = [];
         this.updateSettings();
         this.lastUpdateTime = Date.now();
+        
+        // Particle pool
+        this.particlePool = [];
+        for (let i = 0; i < 500; i++) {
+            this.particlePool.push({});
+        }
     }
 
     updateSettings() {
@@ -22,38 +28,44 @@ class Graphics {
 
     createShatterParticles(enemy) {
         const particles = [];
-        const color = enemy.type === 'diamond' ? '#00ffff' : '#00ff00';
+        const color = enemy.type === 'diamond' ? 'rgb(0, 255, 255)' : 'rgb(0, 255, 0)';
         const size = enemy.size;
         const particleCount = 20;
 
         for (let i = 0; i < particleCount; i++) {
+            const particle = this.particlePool.pop() || {};
             const angle = (Math.PI * 2 / particleCount) * i;
             const speed = 1 + Math.random() * 2;
-            particles.push({
-                x: enemy.x,
-                y: enemy.y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
-                size: size / 4 + Math.random() * (size / 4),
-                color: color,
-                alpha: 1,
-                rotation: Math.random() * Math.PI * 2,
-                rotationSpeed: (Math.random() - 0.5) * 0.2
-            });
+            
+            particle.x = enemy.x;
+            particle.y = enemy.y;
+            particle.vx = Math.cos(angle) * speed;
+            particle.vy = Math.sin(angle) * speed;
+            particle.size = size / 4 + Math.random() * (size / 4);
+            particle.color = color;
+            particle.alpha = 1;
+            particle.rotation = Math.random() * Math.PI * 2;
+            particle.rotationSpeed = (Math.random() - 0.5) * 0.2;
+            
+            particles.push(particle);
         }
 
         return particles;
     }
 
-    updateShatterParticles() {
+    updateShatterParticles(deltaTime) {
         this.shatterParticles = this.shatterParticles.filter(particle => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.rotation += particle.rotationSpeed;
-            particle.alpha -= 0.02;
-            particle.size *= 0.97;
+            particle.x += particle.vx * deltaTime;
+            particle.y += particle.vy * deltaTime;
+            particle.rotation += particle.rotationSpeed * deltaTime;
+            particle.alpha -= 0.02 * deltaTime;
+            particle.size *= Math.pow(0.97, deltaTime);
     
-            return particle.alpha > 0 && particle.size > 0.5;
+            if (particle.alpha <= 0 || particle.size <= 0.5) {
+                this.particlePool.push(particle);  // Return to pool
+                return false;
+            }
+            return true;
         });
     }
     
@@ -73,36 +85,9 @@ class Graphics {
         });
     }
 
-    updateAnimation() {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-        this.lastUpdateTime = currentTime;
-    
+    updateAnimation(deltaTime) {
         this.animationTime += deltaTime * 1.5;
-        this.updateShatterParticles();
-    }
-
-    hexToRgb(hex) {
-        hex = hex.replace(/^#/, '');
-        let r, g, b;
-    
-        if (hex.length === 3) {
-            r = parseInt(hex.charAt(0) + hex.charAt(0), 16);
-            g = parseInt(hex.charAt(1) + hex.charAt(1), 16);
-            b = parseInt(hex.charAt(2) + hex.charAt(2), 16);
-        } else if (hex.length === 6) {
-            r = parseInt(hex.substring(0, 2), 16);
-            g = parseInt(hex.substring(2, 4), 16);
-            b = parseInt(hex.substring(4, 6), 16);
-        } else {
-            throw new Error('Invalid hex color format');
-        }
-    
-        r = Math.min(255, Math.max(0, r));
-        g = Math.min(255, Math.max(0, g));
-        b = Math.min(255, Math.max(0, b));
-    
-        return { r, g, b };
+        this.updateShatterParticles(deltaTime);
     }
 
     drawWithGlow(drawFunction, x, y, size, angle, color) {
@@ -113,7 +98,6 @@ class Graphics {
         const currentGlowSize = 9;
         const currentGlowIntensity = 0.85;
 
-        const rgb = this.hexToRgb(color);
         this.ctx.shadowBlur = currentGlowSize / 2;
         this.ctx.shadowColor = color;
 
@@ -122,7 +106,7 @@ class Graphics {
             drawFunction(this.ctx, size);
             
             const alpha = (currentGlowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+            this.ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
             this.ctx.lineWidth = currentGlowSize * (1 - i / 20);
             this.ctx.stroke();
         }
@@ -145,7 +129,7 @@ class Graphics {
             ctx.lineTo(-size / 2, size / 2);
             ctx.closePath();
         };
-        this.drawWithGlow(drawPlayerShape, player.x, player.y, player.size, player.angle, '#ffffff');
+        this.drawWithGlow(drawPlayerShape, player.x, player.y, player.size, player.angle, 'rgb(255, 255, 255)');
         
         this.ctx.save();
         this.ctx.translate(player.x, player.y);
@@ -161,12 +145,6 @@ class Graphics {
     }
 
     drawEnemy(enemy) {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-        this.lastUpdateTime = currentTime;
-        
-        this.animationTime += deltaTime * 1.5;
-    
         if (enemy.type === 'diamond') {
             const drawDiamondShape = (ctx, size) => {
                 const scaleFactor = 1.6;
@@ -188,12 +166,12 @@ class Graphics {
                 ctx.quadraticCurveTo(-halfWidth, 0, -halfWidth + radius, -radius);
                 ctx.closePath();
             };
-            this.drawWithGlow(drawDiamondShape, enemy.x, enemy.y, enemy.size, 0, '#00ffff');
+            this.drawWithGlow(drawDiamondShape, enemy.x, enemy.y, enemy.size, 0, 'rgb(0, 255, 255)');
         } else if (enemy.type === 'square') {
             const drawSquareShape = (ctx, size) => {
                 ctx.rect(-size / 2, -size / 2, size, size);
             };
-            this.drawWithGlow(drawSquareShape, enemy.x, enemy.y, enemy.size, 0, '#00ff00');
+            this.drawWithGlow(drawSquareShape, enemy.x, enemy.y, enemy.size, 0, 'rgb(0, 255, 0)');
         }
     }
 
@@ -203,7 +181,7 @@ class Graphics {
         const frontPointiness = 1;
         const rearPointiness = 0.34;
         const sideIndent = 0;
-        const color = '#ffff00';
+        const color = 'rgb(255, 255, 0)';
         const glowSize = 9;
         const glowIntensity = 0.85;
     
@@ -232,7 +210,6 @@ class Graphics {
             ctx.closePath();
         };
     
-        const rgb = this.hexToRgb(color);
         this.ctx.shadowBlur = glowSize / 2;
         this.ctx.shadowColor = color;
     
@@ -241,7 +218,7 @@ class Graphics {
             drawBulletShape(this.ctx);
             
             const alpha = (glowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+            this.ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
             this.ctx.lineWidth = glowSize * (1 - i / 20);
             this.ctx.stroke();
         }
