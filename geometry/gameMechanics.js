@@ -24,8 +24,8 @@ class GameMechanics {
     constructor(canvas) {
         this.canvas = canvas;
         this.player = this.createPlayer();
-        this.enemyPool = new ObjectPool(Enemy, 20);
-        this.bulletPool = new ObjectPool(Bullet, 50);
+        this.enemyPool = new ObjectPool(Enemy, CONFIG.INITIAL_ENEMY_POOL_SIZE);
+        this.bulletPool = new ObjectPool(Bullet, CONFIG.INITIAL_BULLET_POOL_SIZE);
         this.enemies = [];
         this.bullets = [];
         this.score = 0;
