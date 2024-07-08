@@ -161,6 +161,7 @@ class GameMechanics {
         }
 
         this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
+        this.graphics.updateAnimation();
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);

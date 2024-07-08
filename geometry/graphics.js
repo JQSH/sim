@@ -45,18 +45,18 @@ class Graphics {
         return particles;
     }
 
-    updateShatterParticles(deltaTime) {
+    updateShatterParticles() {
         this.shatterParticles = this.shatterParticles.filter(particle => {
             particle.x += particle.vx;
             particle.y += particle.vy;
             particle.rotation += particle.rotationSpeed;
             particle.alpha -= 0.02;
             particle.size *= 0.97;
-
+    
             return particle.alpha > 0 && particle.size > 0.5;
         });
     }
-
+    
     drawShatterParticles() {
         this.shatterParticles.forEach(particle => {
             this.ctx.save();
