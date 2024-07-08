@@ -100,6 +100,7 @@ class GameMechanics {
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < enemy.size) {
                     this.bullets.splice(i, 1);
+                    this.graphics.createShatterParticles(enemy);
                     this.enemies.splice(j, 1);
                     this.score += enemy.points;
                     break;
