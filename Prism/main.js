@@ -78,6 +78,22 @@ class Game {
         this.ui.updateLives(this.lives);
     }
 
+    shootBullet() {
+        const bullet = this.getBulletFromPool();
+        if (bullet) {
+            const direction = new THREE.Vector3(
+                Math.cos(this.player.mesh.rotation.z + Math.PI / 2),
+                Math.sin(this.player.mesh.rotation.z + Math.PI / 2),
+                0
+            );
+            bullet.init(this.player.mesh.position, direction);
+        }
+    }
+
+    getBulletFromPool() {
+        return this.bulletPool.find(b => !b.inUse);
+    }
+
     checkCollisions() {
         const activeBullets = this.bulletPool.filter(b => b.inUse);
     
@@ -111,53 +127,6 @@ class Game {
                     enemy.reset();
                     break;
                 }
-            }
-        }
-    }
-
-    shootBullet() {
-        const bullet = this.getBulletFromPool();
-        if (bullet) {
-            const direction = new THREE.Vector3(
-                Math.cos(this.player.mesh.rotation.z + Math.PI / 2),
-                Math.sin(this.player.mesh.rotation.z + Math.PI / 2),
-                0
-            );
-            bullet.init(this.player.mesh.position, direction);
-        }
-    }
-
-    getBulletFromPool() {
-        return this.bulletPool.find(b => !b.inUse);
-    }
-
-    checkCollisions() {
-        const activeBullets = this.bulletPool.filter(b => b.inUse);
-
-        const enemyDestroyed = this.enemyAI.checkCollisions(activeBullets, (points, position) => {
-            this.score += points;
-            this.graphics.createShatterEffect(position);
-        });
-
-        if (enemyDestroyed) {
-            // Remove the collided bullet
-            const collidedBullet = activeBullets.find(b => !b.inUse);
-            if (collidedBullet) {
-                collidedBullet.reset();
-            }
-        }
-
-        // Check for player-enemy collisions
-        for (const enemy of this.enemyAI.enemies) {
-            if (enemy.mesh && this.player.checkCollision(enemy)) {
-                this.lives--;
-                if (this.lives <= 0) {
-                    this.gameOver();
-                } else {
-                    this.resetPlayerPosition();
-                }
-                enemy.reset();
-                break;
             }
         }
     }
