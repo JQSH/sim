@@ -1,242 +1,202 @@
-class Graphics {
+class GameMechanics {
     constructor(canvas) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
-        this.animationTime = 0;
-        this.shatterParticles = [];
-        this.updateSettings();
-        this.lastUpdateTime = Date.now();
+        this.player = this.createPlayer();
+        this.enemies = [];
+        this.bullets = [];
+        this.score = 0;
+        this.lives = 3;
+        this.lastFireTime = 0;
+
+        this.graphics = new Graphics(canvas);
+        this.background = new Background(canvas);
+        this.input = new InputManager();
+        this.enemyAI = new EnemyAIManager();
+        this.ui = new UI();
+        this.audio = new AudioManager();
+    }
+
+    static startGame(canvas) {
+        const game = new GameMechanics(canvas);
+        game.gameLoop();
+    }
+
+    createPlayer() {
+        return {
+            x: this.canvas.width / 2,
+            y: this.canvas.height / 2,
+            size: 20,
+            speed: CONFIG.PLAYER_SPEED,
+            angle: 0,
+            recentMovements: []
+        };
+    }
+
+    updatePlayer(movement) {
+        const dx = movement.x * this.player.speed;
+        const dy = movement.y * this.player.speed;
         
-        // Particle pool
-        this.particlePool = [];
-        for (let i = 0; i < 500; i++) {
-            this.particlePool.push({});
+        this.player.x += dx;
+        this.player.y += dy;
+        
+        this.player.x = Math.max(this.player.size / 2, Math.min(this.canvas.width - this.player.size / 2, this.player.x));
+        this.player.y = Math.max(this.player.size / 2, Math.min(this.canvas.height - this.player.size / 2, this.player.y));
+
+        if (movement.x !== 0 || movement.y !== 0) {
+            this.background.interact(this.player.x, this.player.y, 1);
         }
-    }
-
-    updateSettings() {
-        this.segmentsPerSide = 3;
-        this.maxVelocity = 2;
-        this.rotationSpeed = 2;
-        this.fadeSpeed = 0.5;
-    }
-
-    createShatterEffect(enemy) {
-        const particles = this.createShatterParticles(enemy);
-        this.shatterParticles.push(...particles);
-    }
-
-    createShatterParticles(enemy) {
-        const particles = [];
-        const color = enemy.type === 'diamond' ? 'rgb(0, 255, 255)' : 'rgb(0, 255, 0)';
-        const size = enemy.size;
-        const particleCount = 20;
-
-        for (let i = 0; i < particleCount; i++) {
-            const particle = this.particlePool.pop() || {};
-            const angle = (Math.PI * 2 / particleCount) * i;
-            const speed = 1 + Math.random() * 2;
-            
-            particle.x = enemy.x;
-            particle.y = enemy.y;
-            particle.vx = Math.cos(angle) * speed;
-            particle.vy = Math.sin(angle) * speed;
-            particle.size = size / 4 + Math.random() * (size / 4);
-            particle.color = color;
-            particle.alpha = 1;
-            particle.rotation = Math.random() * Math.PI * 2;
-            particle.rotationSpeed = (Math.random() - 0.5) * 0.2;
-            
-            particles.push(particle);
-        }
-
-        return particles;
-    }
-
-    updateShatterParticles(deltaTime) {
-        this.shatterParticles = this.shatterParticles.filter(particle => {
-            particle.x += particle.vx * deltaTime;
-            particle.y += particle.vy * deltaTime;
-            particle.rotation += particle.rotationSpeed * deltaTime;
-            particle.alpha -= 0.02 * deltaTime;
-            particle.size *= Math.pow(0.97, deltaTime);
-    
-            if (particle.alpha <= 0 || particle.size <= 0.5) {
-                this.particlePool.push(particle);  // Return to pool
-                return false;
+        
+        if (dx !== 0 || dy !== 0) {
+            this.player.recentMovements.push({dx, dy});
+            if (this.player.recentMovements.length > 10) {
+                this.player.recentMovements.shift();
             }
-            return true;
+            
+            const avgMovement = this.player.recentMovements.reduce((acc, mov) => {
+                acc.dx += mov.dx;
+                acc.dy += mov.dy;
+                return acc;
+            }, {dx: 0, dy: 0});
+            
+            this.player.angle = Math.atan2(avgMovement.dy, avgMovement.dx);
+        }
+    }
+
+    shootBullet(shootingDirection) {
+        const currentTime = Date.now();
+        if (currentTime - this.lastFireTime < CONFIG.FIRE_RATE) return;
+
+        this.lastFireTime = currentTime;
+
+        let shootAngle;
+        if (shootingDirection.x !== 0 || shootingDirection.y !== 0) {
+            shootAngle = Math.atan2(shootingDirection.y, shootingDirection.x);
+        } else {
+            return; // Don't shoot if no direction
+        }
+
+        this.bullets.push({
+            x: this.player.x + Math.cos(shootAngle) * this.player.size,
+            y: this.player.y + Math.sin(shootAngle) * this.player.size,
+            angle: shootAngle,
+            speed: CONFIG.BULLET_SPEED,
         });
     }
-    
-    drawShatterParticles() {
-        this.shatterParticles.forEach(particle => {
-            this.ctx.save();
-            this.ctx.translate(particle.x, particle.y);
-            this.ctx.rotate(particle.rotation);
-            this.ctx.globalAlpha = particle.alpha;
 
-            this.ctx.fillStyle = particle.color;
-            this.ctx.beginPath();
-            this.ctx.rect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
-            this.ctx.fill();
+    updateBullets() {
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            bullet.x += Math.cos(bullet.angle) * bullet.speed;
+            bullet.y += Math.sin(bullet.angle) * bullet.speed;
 
-            this.ctx.restore();
-        });
-    }
-
-    updateAnimation(deltaTime) {
-        this.animationTime += deltaTime * 1.5;
-        this.updateShatterParticles(deltaTime);
-    }
-
-    drawWithGlow(drawFunction, x, y, size, angle, color) {
-        this.ctx.save();
-        this.ctx.translate(x, y);
-        this.ctx.rotate(angle);
-
-        const currentGlowSize = 9;
-        const currentGlowIntensity = 0.85;
-
-        this.ctx.shadowBlur = currentGlowSize / 2;
-        this.ctx.shadowColor = color;
-
-        for (let i = 0; i < 20; i++) {
-            this.ctx.beginPath();
-            drawFunction(this.ctx, size);
-            
-            const alpha = (currentGlowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
-            this.ctx.lineWidth = currentGlowSize * (1 - i / 20);
-            this.ctx.stroke();
-        }
-
-        this.ctx.shadowBlur = 0;
-
-        this.ctx.beginPath();
-        drawFunction(this.ctx, size);
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
-
-        this.ctx.restore();
-    }
-
-    drawPlayer(player) {
-        const drawPlayerShape = (ctx, size) => {
-            ctx.moveTo(size / 2, 0);
-            ctx.lineTo(-size / 2, -size / 2);
-            ctx.lineTo(-size / 2, size / 2);
-            ctx.closePath();
-        };
-        this.drawWithGlow(drawPlayerShape, player.x, player.y, player.size, player.angle, 'rgb(255, 255, 255)');
-        
-        this.ctx.save();
-        this.ctx.translate(player.x, player.y);
-        this.ctx.rotate(player.angle);
-        this.ctx.beginPath();
-        this.ctx.moveTo(player.size / 2, 0);
-        this.ctx.lineTo(-player.size / 6, -player.size / 6);
-        this.ctx.lineTo(-player.size / 6, player.size / 6);
-        this.ctx.closePath();
-        this.ctx.fillStyle = 'white';
-        this.ctx.fill();
-        this.ctx.restore();
-    }
-
-    drawEnemy(enemy) {
-        if (enemy.type === 'diamond') {
-            const drawDiamondShape = (ctx, size) => {
-                const scaleFactor = 1.6;
-                const widthScale = (Math.sin(this.animationTime * 1.8 + 0) * 0.22 + 1) * scaleFactor;
-                const heightScale = (Math.cos(this.animationTime * 1.8 + 1.57) * 0.22 + 1) * scaleFactor;
-                
-                const width = Math.max(size * widthScale, size * 0.7 * scaleFactor);
-                const height = Math.max(size * heightScale, size * 0.66 * scaleFactor);
-                const halfWidth = width / 2;
-                const halfHeight = height / 2;
-                const maxRadius = Math.min(halfWidth, halfHeight) / 2;
-                const radius = Math.min(2, maxRadius);
-    
-                ctx.moveTo(0, -halfHeight);
-                ctx.lineTo(halfWidth - radius, -radius);
-                ctx.quadraticCurveTo(halfWidth, 0, halfWidth - radius, radius);
-                ctx.lineTo(0, halfHeight);
-                ctx.lineTo(-halfWidth + radius, radius);
-                ctx.quadraticCurveTo(-halfWidth, 0, -halfWidth + radius, -radius);
-                ctx.closePath();
-            };
-            this.drawWithGlow(drawDiamondShape, enemy.x, enemy.y, enemy.size, 0, 'rgb(0, 255, 255)');
-        } else if (enemy.type === 'square') {
-            const drawSquareShape = (ctx, size) => {
-                ctx.rect(-size / 2, -size / 2, size, size);
-            };
-            this.drawWithGlow(drawSquareShape, enemy.x, enemy.y, enemy.size, 0, 'rgb(0, 255, 0)');
-        }
-    }
-
-    drawBullet(x, y, angle) {
-        const width = 12;
-        const height = 7;
-        const frontPointiness = 1;
-        const rearPointiness = 0.34;
-        const sideIndent = 0;
-        const color = 'rgb(255, 255, 0)';
-        const glowSize = 9;
-        const glowIntensity = 0.85;
-    
-        this.ctx.save();
-        this.ctx.translate(x, y);
-        this.ctx.rotate(angle);
-    
-        const drawBulletShape = (ctx) => {
-            const frontTip = width * (1 - frontPointiness);
-            const rearTip = width * (1 - rearPointiness);
-            const sideDepth = height * sideIndent / 2;
-    
-            ctx.moveTo(width, 0);
-            ctx.quadraticCurveTo(width, height/2, frontTip, height/2);
-            ctx.lineTo(-rearTip, height/2);
-            ctx.quadraticCurveTo(-width, height/2, -width, 0);
-            ctx.quadraticCurveTo(-width, -height/2, -rearTip, -height/2);
-            ctx.lineTo(frontTip, -height/2);
-            ctx.quadraticCurveTo(width, -height/2, width, 0);
-    
-            if (sideIndent > 0) {
-                ctx.quadraticCurveTo(width/2, sideDepth, 0, sideDepth);
-                ctx.quadraticCurveTo(-width/2, sideDepth, -width, 0);
+            if (bullet.x < 0 || bullet.x > this.canvas.width || bullet.y < 0 || bullet.y > this.canvas.height) {
+                this.bullets.splice(i, 1);
             }
-    
-            ctx.closePath();
-        };
-    
-        this.ctx.shadowBlur = glowSize / 2;
-        this.ctx.shadowColor = color;
-    
-        for (let i = 0; i < 20; i++) {
-            this.ctx.beginPath();
-            drawBulletShape(this.ctx);
-            
-            const alpha = (glowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
-            this.ctx.lineWidth = glowSize * (1 - i / 20);
-            this.ctx.stroke();
         }
-    
-        this.ctx.shadowBlur = 0;
-    
-        this.ctx.beginPath();
-        drawBulletShape(this.ctx);
-        this.ctx.fillStyle = color;
-        this.ctx.fill();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
-    
-        this.ctx.restore();
     }
 
-    clear() {
-        this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    checkCollisions() {
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            for (let j = this.enemies.length - 1; j >= 0; j--) {
+                const enemy = this.enemies[j];
+                const dx = bullet.x - enemy.x;
+                const dy = bullet.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < enemy.size) {
+                    this.bullets.splice(i, 1);
+                    this.graphics.createShatterEffect(enemy);
+                    this.enemies.splice(j, 1);
+                    this.score += enemy.points;
+                    break;
+                }
+            }
+        }
+
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
+            const dx = this.player.x - enemy.x;
+            const dy = this.player.y - enemy.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < this.player.size / 2 + enemy.size / 2) {
+                this.lives--;
+                if (this.lives <= 0) {
+                    this.gameOver();
+                } else {
+                    this.playerDied();
+                }
+                break;
+            }
+        }
+    }
+
+    playerDied() {
+        this.enemies = [];
+        this.bullets = [];
+        this.player.x = this.canvas.width / 2;
+        this.player.y = this.canvas.height / 2;
+        this.player.angle = 0;
+        this.player.recentMovements = [];
+    }
+
+    gameOver() {
+        console.log("Game Over! Your score: " + this.score);
+        this.resetGame();
+    }
+
+    resetGame() {
+        this.score = 0;
+        this.lives = 3;
+        this.enemies = [];
+        this.bullets = [];
+        this.player.x = this.canvas.width / 2;
+        this.player.y = this.canvas.height / 2;
+        this.player.angle = 0;
+        this.player.recentMovements = [];
+    }
+
+    update() {
+        this.input.update();
+        const movement = this.input.getMovement();
+        const shootingDirection = this.input.getShootingDirection();
+
+        this.updatePlayer(movement);
+        if (this.input.isFirePressed()) {
+            this.shootBullet(shootingDirection);
+        }
+this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
+        this.graphics.updateAnimation();
+        this.background.update();
+        
+        const currentTime = Date.now();
+        const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
+        spawnedEnemies.forEach(type => {
+            const enemy = this.enemyAI.spawnEnemy(type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
+            this.enemies.push(enemy);
+        });
+
+        this.updateBullets();
+        this.checkCollisions();
+
+        if (this.ui) {
+            this.ui.updateScore(this.score);
+            this.ui.updateLives(this.lives);
+        }
+    }
+
+    render() {
+        this.graphics.clear();
+        this.background.draw();
+        this.graphics.drawEnvironment();
+        this.graphics.drawPlayer(this.player);
+        this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
+        this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
+        this.graphics.drawShatterParticles();
+    }
+
+    gameLoop() {
+        this.update();
+        this.render();
+        requestAnimationFrame(() => this.gameLoop());
     }
 }
