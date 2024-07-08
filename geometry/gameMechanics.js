@@ -150,7 +150,7 @@ class GameMechanics {
         this.player.recentMovements = [];
     }
 
-    update() {
+    update(deltaTime) {
         this.input.update();
         const movement = this.input.getMovement();
         const shootingDirection = this.input.getShootingDirection();
@@ -161,6 +161,7 @@ class GameMechanics {
         }
 
         this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets);
+        this.graphics.updateAnimation(deltaTime);
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
@@ -186,9 +187,12 @@ class GameMechanics {
         this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
         this.graphics.drawShatterParticles();
     }
-    gameLoop() {
-        this.update();
+    gameLoop(timestamp) {
+        const deltaTime = (timestamp - this.lastTimestamp) / 1000;
+        this.lastTimestamp = timestamp;
+    
+        this.update(deltaTime);
         this.render();
-        requestAnimationFrame(() => this.gameLoop());
+        requestAnimationFrame((timestamp) => this.gameLoop(timestamp));
     }
 }
