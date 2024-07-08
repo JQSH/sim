@@ -259,10 +259,6 @@ class Graphics {
         this.ctx.restore();
     }
 
-    drawEnvironment() {
-        // You can add environment drawing code here if needed
-    }
-
     clear() {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
