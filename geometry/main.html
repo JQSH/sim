@@ -66,18 +66,40 @@
     <script src="https://jqsh.github.io/sim/geometry/audio.js"></script>
 
     <script>
-    window.onload = () => {
-        const canvas = document.getElementById('gameCanvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
+        window.onload = () => {
+            const canvas = document.getElementById('gameCanvas');
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-        });
-
-        GameMechanics.startGame(canvas);
-    };
+    
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                // If you have a resize method in your game, call it here
+                // game.resize(canvas.width, canvas.height);
+            });
+    
+            // Initialize the game
+            const game = new GameMechanics(canvas);
+    
+            // Load audio
+            /*
+            game.audio.loadSound('shoot', 'path/to/shoot.wav');
+            game.audio.loadSound('enemyDeath', 'path/to/enemyDeath.wav');
+            game.audio.loadSound('playerDeath', 'path/to/playerDeath.wav');
+            game.audio.loadSound('gameOver', 'path/to/gameOver.wav');
+            game.audio.loadMusic('path/to/backgroundMusic.mp3');
+    
+            // Start background music
+            game.audio.playMusic();
+            */
+           
+            // Start the game loop
+            function gameLoop(timestamp) {
+                game.gameLoop(timestamp);
+                requestAnimationFrame(gameLoop);
+            }
+            requestAnimationFrame(gameLoop);
+        };
     </script>
 </body>
 </html>

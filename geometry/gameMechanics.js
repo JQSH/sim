@@ -191,26 +191,28 @@ class GameMechanics {
         this.input.update();
         const movement = this.input.getMovement();
         const shootingDirection = this.input.getShootingDirection();
-
+    
         this.updatePlayer(movement);
         if (this.input.isFirePressed()) {
             this.shootBullet(shootingDirection);
         }
-        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
-        this.graphics.updateAnimation(deltaTime);
-        this.background.update();
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
         spawnedEnemies.forEach(type => {
+            const enemyData = this.enemyAI.spawnEnemy(type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
             const enemy = this.enemyPool.get();
-            this.enemyAI.initEnemy(enemy, type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
+            enemy.init(type, enemyData.x, enemyData.y, this.enemyAI.enemyTypes[type]);
             this.enemies.push(enemy);
         });
-
+    
+        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
         this.updateBullets();
         this.checkCollisions();
-
+    
+        this.graphics.updateAnimation(deltaTime);
+        this.background.update();
+    
         if (this.ui) {
             this.ui.updateScore(this.score);
             this.ui.updateLives(this.lives);
