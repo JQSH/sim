@@ -7,6 +7,7 @@ class Graphics {
         this.shatterParticles = [];
         this.updateSettings();
         this.lastUpdateTime = Date.now();
+        this.lastTime = performance.now();
     }
 
     updateSettings() {
@@ -82,11 +83,11 @@ class Graphics {
 
     updateShatterParticles(deltaTime) {
         this.shatterParticles = this.shatterParticles.filter(particle => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
+            particle.x += particle.vx * deltaTime * 60;  // Adjust for frame rate independence
+            particle.y += particle.vy * deltaTime * 60;
             particle.rotation += particle.rotationSpeed * deltaTime;
             particle.alpha -= this.fadeSpeed * deltaTime;
-
+    
             return particle.alpha > 0;
         });
     }

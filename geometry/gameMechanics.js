@@ -184,10 +184,15 @@ class GameMechanics {
         this.graphics.drawPlayer(this.player);
         this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
         this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
+        this.graphics.drawShatterParticles();
     }
 
     gameLoop() {
-        this.update();
+        const currentTime = performance.now();
+        const deltaTime = (currentTime - this.lastTime) / 1000;
+        this.lastTime = currentTime;
+    
+        this.update(deltaTime);
         this.render();
         requestAnimationFrame(() => this.gameLoop());
     }
