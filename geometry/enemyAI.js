@@ -23,13 +23,8 @@ class EnemyAIManager {
         };
     }
 
-    createEnemy(type, x, y) {
-        return {
-            x: x,
-            y: y,
-            type: type,
-            ...this.enemyTypes[type]
-        };
+    initEnemy(enemy, type, x, y) {
+        Object.assign(enemy, this.enemyTypes[type], { x, y, type });
     }
 
     updateEnemies(enemies, player, bullets, background) {
@@ -100,6 +95,6 @@ class EnemyAIManager {
             (Math.sqrt(Math.pow(x - playerX, 2) + Math.pow(y - playerY, 2)) < safeDistance)
         );
 
-        return this.createEnemy(type, x, y);
+        return { x, y, type };
     }
 }

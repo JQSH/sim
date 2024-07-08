@@ -6,6 +6,7 @@ class Graphics {
         this.shatterParticles = [];
         this.updateSettings();
         this.lastUpdateTime = Date.now();
+        this.glowCache = new Map();
     }
 
     updateSettings() {
@@ -73,12 +74,8 @@ class Graphics {
         });
     }
 
-    updateAnimation() {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-        this.lastUpdateTime = currentTime;
-    
-        this.animationTime += deltaTime * 1.5;
+    updateAnimation(deltaTime) {
+        this.animationTime += deltaTime * 0.001 * 1.5;
         this.updateShatterParticles();
     }
 
@@ -105,29 +102,29 @@ class Graphics {
         return { r, g, b };
     }
 
+    getGlowTexture(color, size) {
+        const key = `${color}-${size}`;
+        if (!this.glowCache.has(key)) {
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = size * 2;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(size, size, 0, size, size, size);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size * 2, size * 2);
+            this.glowCache.set(key, canvas);
+        }
+        return this.glowCache.get(key);
+    }
+
     drawWithGlow(drawFunction, x, y, size, angle, color) {
         this.ctx.save();
         this.ctx.translate(x, y);
         this.ctx.rotate(angle);
 
-        const currentGlowSize = 9;
-        const currentGlowIntensity = 0.85;
-
-        const rgb = this.hexToRgb(color);
-        this.ctx.shadowBlur = currentGlowSize / 2;
-        this.ctx.shadowColor = color;
-
-        for (let i = 0; i < 20; i++) {
-            this.ctx.beginPath();
-            drawFunction(this.ctx, size);
-            
-            const alpha = (currentGlowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-            this.ctx.lineWidth = currentGlowSize * (1 - i / 20);
-            this.ctx.stroke();
-        }
-
-        this.ctx.shadowBlur = 0;
+        const glowTexture = this.getGlowTexture(color, size * 2);
+        this.ctx.drawImage(glowTexture, -size * 2, -size * 2);
 
         this.ctx.beginPath();
         drawFunction(this.ctx, size);
@@ -160,13 +157,7 @@ class Graphics {
         this.ctx.restore();
     }
 
-    drawEnemy(enemy) {
-        const currentTime = Date.now();
-        const deltaTime = (currentTime - this.lastUpdateTime) / 1000;
-        this.lastUpdateTime = currentTime;
-        
-        this.animationTime += deltaTime * 1.5;
-    
+    drawEnemy(ctx, enemy) {
         if (enemy.type === 'diamond') {
             const drawDiamondShape = (ctx, size) => {
                 const scaleFactor = 1.6;
@@ -197,20 +188,14 @@ class Graphics {
         }
     }
 
-    drawBullet(x, y, angle) {
+    drawBullet(ctx, bullet) {
         const width = 12;
         const height = 7;
         const frontPointiness = 1;
         const rearPointiness = 0.34;
         const sideIndent = 0;
         const color = '#ffff00';
-        const glowSize = 9;
-        const glowIntensity = 0.85;
-    
-        this.ctx.save();
-        this.ctx.translate(x, y);
-        this.ctx.rotate(angle);
-    
+
         const drawBulletShape = (ctx) => {
             const frontTip = width * (1 - frontPointiness);
             const rearTip = width * (1 - rearPointiness);
@@ -231,31 +216,17 @@ class Graphics {
     
             ctx.closePath();
         };
-    
-        const rgb = this.hexToRgb(color);
-        this.ctx.shadowBlur = glowSize / 2;
-        this.ctx.shadowColor = color;
-    
-        for (let i = 0; i < 20; i++) {
-            this.ctx.beginPath();
-            drawBulletShape(this.ctx);
-            
-            const alpha = (glowIntensity / 20) * Math.pow(1 - i / 20, 2);
-            this.ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
-            this.ctx.lineWidth = glowSize * (1 - i / 20);
-            this.ctx.stroke();
-        }
-    
-        this.ctx.shadowBlur = 0;
-    
-        this.ctx.beginPath();
-        drawBulletShape(this.ctx);
-        this.ctx.fillStyle = color;
-        this.ctx.fill();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
-        this.ctx.stroke();
-    
+
+        this.drawWithGlow(drawBulletShape, bullet.x, bullet.y, width, bullet.angle, color);
+    }
+
+    batchDraw(objects, drawFunction) {
+        this.ctx.save();
+        objects.forEach(obj => {
+            this.ctx.translate(obj.x, obj.y);
+            drawFunction(this.ctx, obj);
+            this.ctx.translate(-obj.x, -obj.y);
+        });
         this.ctx.restore();
     }
 

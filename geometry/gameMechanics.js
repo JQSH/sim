@@ -1,7 +1,31 @@
+class ObjectPool {
+    constructor(objectType, initialSize) {
+        this.objectType = objectType;
+        this.pool = [];
+        for (let i = 0; i < initialSize; i++) {
+            this.pool.push(new objectType());
+        }
+    }
+
+    get() {
+        if (this.pool.length > 0) {
+            return this.pool.pop();
+        }
+        return new this.objectType();
+    }
+
+    release(object) {
+        object.reset();
+        this.pool.push(object);
+    }
+}
+
 class GameMechanics {
     constructor(canvas) {
         this.canvas = canvas;
         this.player = this.createPlayer();
+        this.enemyPool = new ObjectPool(Enemy, 20);
+        this.bulletPool = new ObjectPool(Bullet, 50);
         this.enemies = [];
         this.bullets = [];
         this.score = 0;
@@ -14,6 +38,10 @@ class GameMechanics {
         this.enemyAI = new EnemyAIManager();
         this.ui = new UI();
         this.audio = new AudioManager();
+
+        this.lastTime = 0;
+        this.accumulator = 0;
+        this.fixedTimeStep = 1000 / 60; // 60 FPS
     }
 
     static startGame(canvas) {
@@ -75,12 +103,12 @@ class GameMechanics {
             return; // Don't shoot if no direction
         }
 
-        this.bullets.push({
-            x: this.player.x + Math.cos(shootAngle) * this.player.size,
-            y: this.player.y + Math.sin(shootAngle) * this.player.size,
-            angle: shootAngle,
-            speed: CONFIG.BULLET_SPEED,
-        });
+        const bullet = this.bulletPool.get();
+        bullet.x = this.player.x + Math.cos(shootAngle) * this.player.size;
+        bullet.y = this.player.y + Math.sin(shootAngle) * this.player.size;
+        bullet.angle = shootAngle;
+        bullet.speed = CONFIG.BULLET_SPEED;
+        this.bullets.push(bullet);
     }
 
     updateBullets() {
@@ -90,7 +118,7 @@ class GameMechanics {
             bullet.y += Math.sin(bullet.angle) * bullet.speed;
 
             if (bullet.x < 0 || bullet.x > this.canvas.width || bullet.y < 0 || bullet.y > this.canvas.height) {
-                this.bullets.splice(i, 1);
+                this.bulletPool.release(this.bullets.splice(i, 1)[0]);
             }
         }
     }
@@ -104,9 +132,9 @@ class GameMechanics {
                 const dy = bullet.y - enemy.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance < enemy.size) {
-                    this.bullets.splice(i, 1);
+                    this.bulletPool.release(this.bullets.splice(i, 1)[0]);
                     this.graphics.createShatterEffect(enemy);
-                    this.enemies.splice(j, 1);
+                    this.enemyPool.release(this.enemies.splice(j, 1)[0]);
                     this.score += enemy.points;
                     break;
                 }
@@ -131,7 +159,9 @@ class GameMechanics {
     }
 
     playerDied() {
+        this.enemies.forEach(enemy => this.enemyPool.release(enemy));
         this.enemies = [];
+        this.bullets.forEach(bullet => this.bulletPool.release(bullet));
         this.bullets = [];
         this.player.x = this.canvas.width / 2;
         this.player.y = this.canvas.height / 2;
@@ -147,7 +177,9 @@ class GameMechanics {
     resetGame() {
         this.score = 0;
         this.lives = 3;
+        this.enemies.forEach(enemy => this.enemyPool.release(enemy));
         this.enemies = [];
+        this.bullets.forEach(bullet => this.bulletPool.release(bullet));
         this.bullets = [];
         this.player.x = this.canvas.width / 2;
         this.player.y = this.canvas.height / 2;
@@ -155,7 +187,7 @@ class GameMechanics {
         this.player.recentMovements = [];
     }
 
-    update() {
+    update(deltaTime) {
         this.input.update();
         const movement = this.input.getMovement();
         const shootingDirection = this.input.getShootingDirection();
@@ -164,14 +196,15 @@ class GameMechanics {
         if (this.input.isFirePressed()) {
             this.shootBullet(shootingDirection);
         }
-this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
-        this.graphics.updateAnimation();
+        this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.background);
+        this.graphics.updateAnimation(deltaTime);
         this.background.update();
         
         const currentTime = Date.now();
         const spawnedEnemies = this.enemyAI.checkEnemySpawns(currentTime, this.score);
         spawnedEnemies.forEach(type => {
-            const enemy = this.enemyAI.spawnEnemy(type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
+            const enemy = this.enemyPool.get();
+            this.enemyAI.initEnemy(enemy, type, this.canvas.width, this.canvas.height, this.player.x, this.player.y);
             this.enemies.push(enemy);
         });
 
@@ -188,14 +221,24 @@ this.enemyAI.updateEnemies(this.enemies, this.player, this.bullets, this.backgro
         this.graphics.clear();
         this.background.draw();
         this.graphics.drawPlayer(this.player);
-        this.enemies.forEach(enemy => this.graphics.drawEnemy(enemy));
-        this.bullets.forEach(bullet => this.graphics.drawBullet(bullet.x, bullet.y, bullet.angle));
+        this.graphics.batchDraw(this.enemies, this.graphics.drawEnemy.bind(this.graphics));
+        this.graphics.batchDraw(this.bullets, this.graphics.drawBullet.bind(this.graphics));
         this.graphics.drawShatterParticles();
     }
 
-    gameLoop() {
-        this.update();
+    gameLoop(currentTime) {
+        if (!this.lastTime) this.lastTime = currentTime;
+        let deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+
+        this.accumulator += deltaTime;
+
+        while (this.accumulator >= this.fixedTimeStep) {
+            this.update(this.fixedTimeStep);
+            this.accumulator -= this.fixedTimeStep;
+        }
+
         this.render();
-        requestAnimationFrame(() => this.gameLoop());
+        requestAnimationFrame(time => this.gameLoop(time));
     }
 }
