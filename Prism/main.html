@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geometry Wars 3D Clone</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 36px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="lives">Lives: 3</div>
+    </div>
+
+    <!-- Three.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/controls/OrbitControls.min.js"></script>
+
+    <!-- Game scripts -->
+    <script src="https://jqsh.github.io/sim/prism/config.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/background.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/input.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/player.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/enemyAI.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/graphics.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/ui.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/Bullet.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/Enemy.js"></script>
+    <script src="https://jqsh.github.io/sim/prism/main.js"></script>
+
+    <script>
+        window.onload = () => {
+            const canvas = document.getElementById('gameCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                if (window.game && window.game.onWindowResize) {
+                    window.game.onWindowResize();
+                }
+            });
+
+            // Initialize the game
+            window.game = new Game(canvas);
+        };
+    </script>
+</body>
+</html>
