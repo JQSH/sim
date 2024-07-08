@@ -244,20 +244,14 @@ class Graphics {
     }
 
     drawBullet(bullet) {
-        // Ensure bullet object exists and has necessary properties
-        if (!bullet || typeof bullet.x !== 'number' || typeof bullet.y !== 'number') {
-            console.warn('Invalid bullet object:', bullet);
-            return; // Skip drawing this bullet
-        }
-    
-        const { x, y } = bullet;
-        const width = bullet.width || 5;  // Default width if not specified
-        const height = bullet.height || 2;  // Default height if not specified
-        const cornerRadius = bullet.cornerRadius || 1;  // Default corner radius if not specified
+        const width = 5;  // Default width if not specified
+        const height = 2;  // Default height if not specified
+        const cornerRadius = 1;  // Default corner radius if not specified
         const color = bullet.color || '#ffffff';  // Default to white if color not specified
     
         this.ctx.save();
-        this.ctx.translate(x, y);
+        this.ctx.translate(bullet.x, bullet.y);
+        this.ctx.rotate(bullet.angle);
     
         const drawBulletShape = (ctx) => {
             ctx.moveTo(width, 0);
@@ -271,16 +265,9 @@ class Graphics {
         };
     
         // Draw glow
-        let rgb;
-        try {
-            rgb = this.hexToRgb(color);
-        } catch (error) {
-            console.warn('Error parsing bullet color:', color, error);
-            rgb = { r: 255, g: 255, b: 255 };  // Fallback to white
-        }
-    
+        const rgb = this.hexToRgb(color);
         this.ctx.shadowBlur = 4;
-        this.ctx.shadowColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        this.ctx.shadowColor = color;
     
         for (let i = 0; i < 3; i++) {
             this.ctx.beginPath();
