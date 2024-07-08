@@ -96,12 +96,12 @@ class Game {
 
     checkCollisions() {
         const activeBullets = this.bulletPool.filter(b => b.inUse);
-    
+
         const enemyDestroyed = this.enemyAI.checkCollisions(activeBullets, (points, position) => {
             this.score += points;
             this.graphics.createShatterEffect(position);
         });
-    
+
         if (enemyDestroyed) {
             // Remove the collided bullet
             const collidedBullet = activeBullets.find(b => !b.inUse);
@@ -109,24 +109,18 @@ class Game {
                 collidedBullet.reset();
             }
         }
-    
+
         // Check for player-enemy collisions
         for (const enemy of this.enemyAI.enemies) {
-            if (enemy.mesh && this.player.mesh) {
-                const distance = this.player.mesh.position.distanceTo(enemy.mesh.position);
-                const collisionThreshold = (this.player.mesh.geometry.parameters.radius || 0.5) + 
-                                           (enemy.mesh.geometry.parameters.width || enemy.mesh.geometry.parameters.radius || 0.5) / 2;
-                
-                if (distance < collisionThreshold) {
-                    this.lives--;
-                    if (this.lives <= 0) {
-                        this.gameOver();
-                    } else {
-                        this.resetPlayerPosition();
-                    }
-                    enemy.reset();
-                    break;
+            if (enemy.mesh && this.player.checkCollision(enemy)) {
+                this.lives--;
+                if (this.lives <= 0) {
+                    this.gameOver();
+                } else {
+                    this.resetPlayerPosition();
                 }
+                enemy.reset();
+                break;
             }
         }
     }
