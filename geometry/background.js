@@ -12,123 +12,109 @@ class Background {
     }
 
     init() {
-        this.cellSize = 50; // Increased cell size for fewer calculations
-        this.cols = Math.ceil(this.width / this.cellSize) + 1;
-        this.rows = Math.ceil(this.height / this.cellSize) + 1;
-        this.points = [];
+        this.gridSize = 80;
+        this.cols = Math.ceil(this.width / this.gridSize) + 1;
+        this.rows = Math.ceil(this.height / this.gridSize) + 1;
+        this.points = new Float32Array(this.cols * this.rows * 4); // x, y, dx, dy
 
-        for (let y = 0; y <= this.rows; y++) {
-            for (let x = 0; x <= this.cols; x++) {
-                this.points.push({
-                    x: x * this.cellSize,
-                    y: y * this.cellSize,
-                    originX: x * this.cellSize,
-                    originY: y * this.cellSize,
-                    dx: 0,
-                    dy: 0
-                });
+        for (let y = 0; y < this.rows; y++) {
+            for (let x = 0; x < this.cols; x++) {
+                const i = (y * this.cols + x) * 4;
+                this.points[i] = this.points[i + 2] = x * this.gridSize; // x and baseX
+                this.points[i + 1] = this.points[i + 3] = y * this.gridSize; // y and baseY
             }
         }
 
-        this.time = 0;
-        this.interactionPoints = new Set(); // Using a Set for faster operations
-        this.lastInteractionPoints = new Set();
+        this.interactionPoints = [];
+        
+        this.forceMultiplier = 10000;
+        this.effectRadius = 338;
+        this.fadeSpeed = 0.15;
+        this.elasticity = 0.8;
+        this.lineWidth = 1.5;
+        this.glowIntensity = 7;
+
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCanvas.width = this.width;
+        this.offscreenCanvas.height = this.height;
+        this.offscreenCtx = this.offscreenCanvas.getContext('2d');
     }
 
-    interact(x, y, mass) {
-        const key = `${Math.floor(x / this.cellSize)},${Math.floor(y / this.cellSize)}`;
-        this.interactionPoints.add(key);
+    interact(x, y, mass = 1) {
+        this.interactionPoints.push({ x, y, mass, life: 1 });
     }
 
     update() {
-        this.time += 0.01;
-
-        // Only update points near interaction points
-        this.interactionPoints.forEach(key => {
-            const [x, y] = key.split(',').map(Number);
-            this.updateNearbyPoints(x, y);
+        this.interactionPoints = this.interactionPoints.filter(point => {
+            point.life -= 0.02;
+            return point.life > 0;
         });
 
-        // Reset points that were affected in the last frame but not in this one
-        this.lastInteractionPoints.forEach(key => {
-            if (!this.interactionPoints.has(key)) {
-                const [x, y] = key.split(',').map(Number);
-                this.resetNearbyPoints(x, y);
-            }
-        });
+        const effectRadiusSquared = this.effectRadius * this.effectRadius;
+        for (let i = 0; i < this.points.length; i += 4) {
+            let totalForceX = 0;
+            let totalForceY = 0;
 
-        this.lastInteractionPoints = new Set(this.interactionPoints);
-        this.interactionPoints.clear();
-    }
+            for (const point of this.interactionPoints) {
+                const dx = point.x - this.points[i + 2];
+                const dy = point.y - this.points[i + 3];
+                const distanceSquared = dx * dx + dy * dy;
 
-    updateNearbyPoints(gridX, gridY) {
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                const x = gridX + dx;
-                const y = gridY + dy;
-                if (x >= 0 && x <= this.cols && y >= 0 && y <= this.rows) {
-                    const index = y * (this.cols + 1) + x;
-                    const point = this.points[index];
-                    if (point) {
-                        const force = 5; // Reduced force for smoother effect
-                        point.dx = (Math.random() - 0.5) * force;
-                        point.dy = (Math.random() - 0.5) * force;
-                        point.x = point.originX + point.dx;
-                        point.y = point.originY + point.dy;
-                    }
+                if (distanceSquared < effectRadiusSquared) {
+                    const distance = Math.sqrt(distanceSquared);
+                    const force = (1 - distance / this.effectRadius) * this.forceMultiplier * point.mass * point.life;
+                    totalForceX += (dx / distance) * force;
+                    totalForceY += (dy / distance) * force;
                 }
             }
+
+            this.points[i] += totalForceX * 0.0001;
+            this.points[i + 1] += totalForceY * 0.0001;
         }
+
+        this.relaxPoints();
     }
 
-    resetNearbyPoints(gridX, gridY) {
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-                const x = gridX + dx;
-                const y = gridY + dy;
-                if (x >= 0 && x <= this.cols && y >= 0 && y <= this.rows) {
-                    const index = y * (this.cols + 1) + x;
-                    const point = this.points[index];
-                    if (point) {
-                        point.x = point.originX;
-                        point.y = point.originY;
-                        point.dx = 0;
-                        point.dy = 0;
-                    }
-                }
-            }
+    relaxPoints() {
+        const elasticityFactor = 1 - this.elasticity;
+        for (let i = 0; i < this.points.length; i += 4) {
+            const dx = this.points[i] - this.points[i + 2];
+            const dy = this.points[i + 1] - this.points[i + 3];
+            this.points[i] -= dx * elasticityFactor;
+            this.points[i + 1] -= dy * elasticityFactor;
         }
     }
 
     draw() {
-        this.ctx.fillStyle = 'rgba(0, 0, 20, 0.1)';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        this.offscreenCtx.fillStyle = `rgba(0, 0, 0, ${this.fadeSpeed})`;
+        this.offscreenCtx.fillRect(0, 0, this.width, this.height);
         
-        for (let y = 0; y < this.rows; y++) {
-            for (let x = 0; x < this.cols; x++) {
-                const p0 = this.points[y * (this.cols + 1) + x];
-                const p1 = this.points[y * (this.cols + 1) + x + 1];
-                const p2 = this.points[(y + 1) * (this.cols + 1) + x];
+        this.offscreenCtx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+        this.offscreenCtx.lineWidth = this.lineWidth;
+        this.offscreenCtx.shadowBlur = this.glowIntensity;
+        this.offscreenCtx.shadowColor = 'cyan';
 
-                if (p0 && p1 && p2) {
-                    const gradient = this.ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
-                    gradient.addColorStop(0, `hsl(${(x + y) * 2 + this.time * 10}, 100%, 50%)`);
-                    gradient.addColorStop(1, `hsl(${(x + y + 1) * 2 + this.time * 10}, 100%, 50%)`);
+        this.offscreenCtx.beginPath();
+        for (let y = 0; y < this.rows - 1; y++) {
+            for (let x = 0; x < this.cols - 1; x++) {
+                const i = (y * this.cols + x) * 4;
+                const x1 = this.points[i];
+                const y1 = this.points[i + 1];
+                const x2 = this.points[i + 4];
+                const y2 = this.points[i + 5];
+                const x3 = this.points[i + this.cols * 4];
+                const y3 = this.points[i + this.cols * 4 + 1];
 
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(p0.x, p0.y);
-                    this.ctx.lineTo(p1.x, p1.y);
-                    this.ctx.strokeStyle = gradient;
-                    this.ctx.lineWidth = 2;
-                    this.ctx.stroke();
-
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(p0.x, p0.y);
-                    this.ctx.lineTo(p2.x, p2.y);
-                    this.ctx.strokeStyle = gradient;
-                    this.ctx.stroke();
-                }
+                this.offscreenCtx.moveTo(x1, y1);
+                this.offscreenCtx.lineTo(x2, y2);
+                this.offscreenCtx.moveTo(x1, y1);
+                this.offscreenCtx.lineTo(x3, y3);
             }
         }
+        this.offscreenCtx.stroke();
+
+        this.offscreenCtx.shadowBlur = 0;
+
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
     }
 }
