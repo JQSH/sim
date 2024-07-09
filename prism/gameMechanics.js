@@ -4,7 +4,6 @@ class GameMechanics {
         this.camera = camera;
         this.renderer = renderer;
 
-        this.graphics = new Graphics(scene);
         this.inputManager = new InputManager(camera);
         this.enemyAIManager = new EnemyAIManager(scene);
         this.ui = new UI();
@@ -23,7 +22,7 @@ class GameMechanics {
     }
 
     createPlayer() {
-        const playerMesh = this.graphics.createPlayerMesh();
+        const playerMesh = Graphics.createPlayerMesh();
         this.scene.add(playerMesh);
         return {
             mesh: playerMesh,
@@ -115,7 +114,6 @@ class GameMechanics {
                     enemy.remove();
                     this.enemies.splice(j, 1);
                     this.score += enemy.points;
-                    //this.graphics.createShatterEffect(enemy.mesh.position, enemy.color);
                     break;
                 }
             }
@@ -128,7 +126,7 @@ class GameMechanics {
             const collisionThreshold = enemy.size / 2 + CONFIG.PLAYER_SIZE / 2;
             
             if (distance < collisionThreshold) {
-                console.log("Player collided with enemy!"); // Add this for debugging
+                console.log("Player collided with enemy!");
                 this.playerDied();
                 break;
             }
@@ -136,7 +134,7 @@ class GameMechanics {
     }
 
     playerDied() {
-        console.log("Player died! Lives left: " + (this.lives - 1)); // Add this for debugging
+        console.log("Player died! Lives left: " + (this.lives - 1));
         this.lives--;
         this.ui.updateLives(this.lives);
         if (this.lives <= 0) {
