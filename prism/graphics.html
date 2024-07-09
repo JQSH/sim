@@ -15,16 +15,16 @@
     <script>
     class Graphics {
         static createPlayerMesh() {
-            const geometry = new THREE.CircleGeometry(CONFIG.PLAYER_SIZE, 32);
+            const geometry = new THREE.CircleGeometry(1, 32);
             const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             return new THREE.Mesh(geometry, material);
         }
     
         static createBulletMesh() {
             const geometry = new THREE.CylinderGeometry(
-                CONFIG.BULLET_THICKNESS / 2,
-                CONFIG.BULLET_THICKNESS / 2,
-                CONFIG.BULLET_SIZE,
+                1 / 2,
+                1 / 2,
+                1,
                 8
             );
             geometry.rotateZ(Math.PI / 2);
@@ -36,16 +36,13 @@
             let geometry, material;
             switch (type) {
                 case 'diamond':
-                    geometry = new THREE.CircleGeometry(CONFIG.ENEMY_SIZE, 4);
+                    geometry = new THREE.CircleGeometry(1, 4);
                     material = new THREE.MeshBasicMaterial({ color: 0x00ffff });
                     break;
                 case 'square':
-                    geometry = new THREE.BoxGeometry(CONFIG.ENEMY_SIZE, CONFIG.ENEMY_SIZE, CONFIG.ENEMY_SIZE);
+                    geometry = new THREE.BoxGeometry(1, 1, 1);
                     material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
                     break;
-                default:
-                    geometry = new THREE.CircleGeometry(CONFIG.ENEMY_SIZE, 32);
-                    material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
             }
             return new THREE.Mesh(geometry, material);
         }
@@ -93,25 +90,16 @@
         squareEnemy.position.set(4, 5, 0);
         scene.add(squareEnemy);
 
-        // Default Enemy
-        const defaultEnemy = Graphics.createEnemyMesh('default');
-        defaultEnemy.position.set(8, 5, 0);
-        scene.add(defaultEnemy);
-
         // Labels
         addLabel("Player", -8, 6);
         addLabel("Bullet", -4, 6);
         addLabel("Diamond", 0, 6);
         addLabel("Square", 4, 6);
-        addLabel("Default", 8, 6);
     }
 
     function addLabel(text, x, y) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        context.font = '48px Arial';
-        context.fillStyle = 'white';
-        context.fillText(text, 0, 48);
         
         const texture = new THREE.CanvasTexture(canvas);
         const material = new THREE.SpriteMaterial({ map: texture });

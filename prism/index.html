@@ -3,37 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geometry Wars Clone</title>
+    <title>Prism</title>
     <style>
-        body { margin: 0; overflow: hidden; }
+        body { margin: 0; }
         canvas { display: block; }
-        #ui-container {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 18px;
-        }
-        #score, #lives {
-            margin-bottom: 5px;
-        }
     </style>
 </head>
 <body>
-    <div id="ui-container">
-        <div id="score">Score: 0</div>
-        <div id="lives">Lives: 3</div>
-    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Add these scripts in this order -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three.meshline@1.4.0/src/THREE.MeshLine.js"></script>
+    
+    <!-- Your game scripts -->
     <script src="config.js"></script>
     <script src="graphics.js"></script>
     <script src="input.js"></script>
     <script src="bullet.js"></script>
     <script src="enemy.js"></script>
     <script src="enemyAi.js"></script>
-    <script src="ui.js"></script>
     <script src="gameMechanics.js"></script>
+    <script src="ui.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

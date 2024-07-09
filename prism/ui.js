@@ -1,7 +1,22 @@
 class UI {
     constructor() {
-        this.scoreElement = document.getElementById('score');
-        this.livesElement = document.getElementById('lives');
+        this.scoreElement = this.createUIElement('Score: 0', '10px', '10px');
+        this.livesElement = this.createUIElement('Lives: 3', '10px', '30px');
+        this.gameOverElement = this.createUIElement('GAME OVER', '50%', '50%');
+        this.gameOverElement.style.display = 'none';
+        this.gameOverElement.style.transform = 'translate(-50%, -50%)';
+    }
+
+    createUIElement(text, left, top) {
+        const element = document.createElement('div');
+        element.style.position = 'absolute';
+        element.style.left = left;
+        element.style.top = top;
+        element.style.color = 'white';
+        element.style.fontFamily = 'Arial, sans-serif';
+        element.textContent = text;
+        document.body.appendChild(element);
+        return element;
     }
 
     updateScore(score) {
@@ -13,34 +28,11 @@ class UI {
     }
 
     showGameOver(score) {
-        const gameOverElement = document.createElement('div');
-        gameOverElement.id = 'game-over';
-        gameOverElement.style.position = 'absolute';
-        gameOverElement.style.top = '50%';
-        gameOverElement.style.left = '50%';
-        gameOverElement.style.transform = 'translate(-50%, -50%)';
-        gameOverElement.style.color = 'white';
-        gameOverElement.style.fontSize = '36px';
-        gameOverElement.style.textAlign = 'center';
-        gameOverElement.innerHTML = `
-            <h1>Game Over</h1>
-            <p>Your score: ${score}</p>
-            <button id="restart-button">Restart</button>
-        `;
-        document.body.appendChild(gameOverElement);
-
-        const restartButton = document.getElementById('restart-button');
-        restartButton.addEventListener('click', () => {
-            this.hideGameOver();
-            // You'll need to implement the restartGame function in your game logic
-            restartGame();
-        });
+        this.gameOverElement.textContent = `GAME OVER\nScore: ${score}\nClick to restart`;
+        this.gameOverElement.style.display = 'block';
     }
 
     hideGameOver() {
-        const gameOverElement = document.getElementById('game-over');
-        if (gameOverElement) {
-            gameOverElement.remove();
-        }
+        this.gameOverElement.style.display = 'none';
     }
 }
