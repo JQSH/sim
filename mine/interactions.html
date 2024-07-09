@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Cartoon Mine Explorer - Interactions</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #87CEEB; 
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+        canvas { 
+            display: block; 
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #debugInfo {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair"></div>
+    <div id="debugInfo"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/character.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
+    
+    <!-- Inline controls script -->
+    <script>// interactions.js
+
+        /*
+        Existing code and game setup (DO NOT MODIFY):
+        const game = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            mine: null,
+            character: null,
+            controls: null,
+        };
+        
+        // Map bounds
+        const MAP_BOUNDS = {
+            minX: -45,
+            maxX: 45,
+            minZ: -45,
+            maxZ: 45,
+            floorY: 0,
+            ceilingY: 20
+        };
+        
+        function initGame() {
+            // ... (previous init code) ...
+            game.controls = initControls(game);
+            // ... (rest of init code) ...
+        }
+        
+        function initControls(game) {
+            const controls = {
+                moveSpeed: 0.5,
+                keys: { w: false, a: false, s: false, d: false },
+                yaw: 0,
+                pitch: 0,
+                update: updateControls
+            };
+        
+            // ... (key event listeners) ...
+        
+            game.renderer.domElement.addEventListener('click', () => {
+                game.renderer.domElement.requestPointerLock();
+            });
+        
+            // ... (other control setup) ...
+        
+            return controls;
+        }
+        
+        // Character movement (for reference)
+        function moveCharacter() {
+            // ... (movement logic) ...
+        
+            // Keep character within bounds
+            game.character.position.x = Math.max(MAP_BOUNDS.minX, Math.min(MAP_BOUNDS.maxX, game.character.position.x));
+            game.character.position.z = Math.max(MAP_BOUNDS.minZ, Math.min(MAP_BOUNDS.maxZ, game.character.position.z));
+        
+            // ... (other character updates) ...
+        }
+        
+        // ... (other existing functions) ...
+        */
+        
+        // New functions to implement:
+        
+        function createPickaxe() {
+            // TODO: Create a pickaxe mesh and add it to the character
+            // Note: The pickaxe should be appropriately sized and positioned relative to the character
+        }
+        
+        function generateMineableRocks() {
+            // TODO: Generate random rocks in the mine that can be mined
+            // Note: Use MAP_BOUNDS to ensure rocks are placed within the playable area
+        }
+        
+        function setupMiningInteraction(game) {
+            // TODO: Set up click event listener for mining
+            // Hint: You may need to modify or extend the existing click event listener
+            // or add a new one for mining specifically
+        }
+        
+        function mineRock(rock) {
+            // TODO: Handle mining of a rock when clicked
+        }
+        
+        // Integration points (modify as needed):
+        
+        function initGameExtension(game) {
+            createPickaxe();
+            generateMineableRocks();
+            setupMiningInteraction(game);
+        }
+        
+        function animateExtension() {
+            // Any continual updates for mining mechanics can go here
+        }
+        
+        /*
+        Integration instructions:
+        1. Call initGameExtension(game) at the end of the existing initGame function.
+        2. Call animateExtension() at the end of the existing animate function.
+        3. Modify the setupMiningInteraction function to work with the existing click handling.
+        
+        Additional notes:
+        - The playable area is defined by MAP_BOUNDS. Ensure all generated objects (like mineable rocks)
+          are within these bounds.
+        - The character's movement is already constrained to these bounds, as shown in the moveCharacter function.
+        - When implementing mining mechanics, consider using raycasting from the camera/character to determine
+          which rock is being mined.
+        */
+    </script>
+
+    <!-- Main game script -->
+    <script src="https://jqsh.github.io/sim/mine/main.js"></script>
+</body>
+</html>
