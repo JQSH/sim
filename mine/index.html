@@ -1,54 +1,25 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>WebSim Cartoon Mine Explorer</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Cartoon Mine Explorer - Materials</title>
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-            background-color: #87CEEB; 
-            cursor: none; 
-        }
-        canvas { 
-            display: block; 
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            background: rgba(0,0,0,0.5);
-            padding: 10px;
-            border-radius: 5px;
-        }
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            border: 2px solid white;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-        }
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <div id="info">WebSim Cartoon Mine Explorer<br>Use WASD keys to move the character<br>Mouse controls camera direction<br>Click to lock/unlock mouse</div>
-    <div id="crosshair"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="mine.js"></script>
-    <script src="character.js"></script>
-    <script src="controls.js"></script>
-    <script src="main.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/main.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/character.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/pickaxe.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/interactions.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
+    <script>
+        window.addEventListener('load', initGame);
+    </script>
 </body>
 </html>
