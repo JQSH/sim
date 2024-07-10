@@ -15,7 +15,11 @@ window.game = {
     gravity: -9.8,
     velocity: new THREE.Vector3(),
     onGround: false,
-    debugMode: false
+    debugMode: false,
+    diamondCount: 0,
+    sparkParticles: [],
+    clock: new THREE.Clock(),
+    collectSound: null
 };
 
 function initGame() {
@@ -30,7 +34,7 @@ function initGame() {
     game.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     game.camera.position.set(0, 10, 10);
 
-    game.renderer = new THREE.WebGLRenderer();
+    game.renderer = new THREE.WebGLRenderer({ antialias: true });
     game.renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(game.renderer.domElement);
 
@@ -68,6 +72,9 @@ function initGame() {
     console.log("Initializing interactions...");
     game.interactions = initInteractions(game);
 
+    console.log("Generating retro coin sound...");
+    game.collectSound = generateRetroCoinSound();
+
     window.addEventListener('resize', onWindowResize);
     document.addEventListener('click', onClickMine, false);
     document.addEventListener('keydown', onKeyDown);
@@ -79,7 +86,7 @@ function initGame() {
 function animate() {
     requestAnimationFrame(animate);
 
-    const deltaTime = 1 / 60;
+    const deltaTime = game.clock.getDelta();
 
     if (game.controls) {
         game.controls.update();
@@ -109,6 +116,8 @@ function animate() {
         debugLog(`Character position: ${game.character.position.toArray().map(v => v.toFixed(2))}`);
         checkProximityToDiamondRocks();
     }
+
+    updateSparkParticles(deltaTime);
 
     game.renderer.render(game.scene, game.camera);
 }
