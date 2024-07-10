@@ -11,508 +11,242 @@
 </head>
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
-        window.game = {
-            scene: null,
-            camera: null,
-            renderer: null,
-            mine: null,
-            character: null,
-            controls: null,
-            raycaster: null,
-            mouse: null,
-            interactions: null,
-            pickaxe: null,
-            isPickaxeAnimating: false,
-            collisionObjects: [],
-            diamondRocks: [],
-            gravity: -9.8,
-            velocity: new THREE.Vector3(),
-            onGround: false,
-            debugMode: false
+    // main.js content
+    window.game = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        mine: null,
+        character: null,
+        controls: null,
+        raycaster: null,
+        mouse: null,
+        interactions: null,
+        pickaxe: null,
+        isPickaxeAnimating: false,
+        collisionObjects: [],
+        diamondRocks: [],
+        gravity: -9.8,
+        velocity: new THREE.Vector3(),
+        onGround: false,
+        debugMode: false
+    };
+
+    function initGame() {
+        console.log("Initializing game...");
+
+        game.collisionObjects = [];
+        game.diamondRocks = [];
+
+        game.scene = new THREE.Scene();
+        game.scene.background = new THREE.Color(0x87CEEB);
+
+        game.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        game.camera.position.set(0, 10, 10);
+
+        game.renderer = new THREE.WebGLRenderer();
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(game.renderer.domElement);
+
+        console.log("Creating mine...");
+        game.mine = createMine();
+        game.scene.add(game.mine);
+
+        console.log("Creating character...");
+        game.character = createCharacter();
+        game.scene.add(game.character);
+
+        console.log("Creating pickaxe...");
+        game.pickaxe = createPickaxe();
+        game.character.add(game.pickaxe);
+
+        game.pickaxe.position.set(1.60, 0.80, -0.60);
+        game.pickaxe.rotation.set(-10.69, 0.00, 0.11);
+        game.pickaxe.scale.set(1.5, 1.5, 1.5);
+
+        console.log("Pickaxe created and added to character:", game.pickaxe instanceof THREE.Group);
+
+        console.log("Initializing controls...");
+        game.controls = initControls(game);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        game.scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(1, 1, 1);
+        game.scene.add(directionalLight);
+
+        game.raycaster = new THREE.Raycaster();
+        game.mouse = new THREE.Vector2();
+
+        console.log("Initializing interactions...");
+        game.interactions = initInteractions(game);
+
+        window.addEventListener('resize', onWindowResize);
+        document.addEventListener('click', onClickMine, false);
+        document.addEventListener('keydown', onKeyDown);
+
+        console.log("Starting animation loop...");
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = 1 / 60;
+
+        if (game.controls) {
+            game.controls.update();
+        }
+
+        if (game.interactions) {
+            game.interactions.update();
+        }
+
+        if (!game.onGround) {
+            game.velocity.y += game.gravity * deltaTime;
+        }
+
+        game.character.position.y += game.velocity.y * deltaTime;
+
+        if (game.character.position.y < 2) {
+            game.character.position.y = 2;
+            game.velocity.y = 0;
+            game.onGround = true;
+        } else {
+            game.onGround = false;
+        }
+
+        checkCollisions();
+
+        if (game.debugMode && Math.random() < 0.01) {
+            debugLog(`Character position: ${game.character.position.toArray().map(v => v.toFixed(2))}`);
+            checkProximityToDiamondRocks();
+        }
+
+        game.renderer.render(game.scene, game.camera);
+    }
+
+    function onWindowResize() {
+        game.camera.aspect = window.innerWidth / window.innerHeight;
+        game.camera.updateProjectionMatrix();
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // interactions.js content
+    function initInteractions(game) {
+        const interactions = {
+            update: function() {
+                // Update logic for interactions (if needed)
+            }
         };
 
-        function debugLog(message) {
-            if (game.debugMode) {
-                console.log(message);
-            }
-        }
+        return interactions;
+    }
 
-        function initGame() {
-            console.log("Initializing game...");
-
-            game.collisionObjects = [];
-            game.diamondRocks = [];
-
-            game.scene = new THREE.Scene();
-            game.scene.background = new THREE.Color(0x87CEEB);
-
-            game.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            game.camera.position.set(0, 10, 10);
-
-            game.renderer = new THREE.WebGLRenderer();
-            game.renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(game.renderer.domElement);
-
-            console.log("Creating mine...");
-            game.mine = createMine();
-            game.scene.add(game.mine);
-
-            console.log("Creating character...");
-            game.character = createCharacter();
-            game.scene.add(game.character);
-
-            console.log("Creating pickaxe...");
-            game.pickaxe = createPickaxe();
-            game.character.add(game.pickaxe);
-
-            game.pickaxe.position.set(1.60, 0.80, -0.60);
-            game.pickaxe.rotation.set(-10.69, 0.00, 0.11);
-            game.pickaxe.scale.set(1.5, 1.5, 1.5);
-
-            console.log("Pickaxe created and added to character:", game.pickaxe instanceof THREE.Group);
-
-            console.log("Initializing controls...");
-            game.controls = initControls(game);
-
-            const ambientLight = new THREE.AmbientLight(0x404040);
-            game.scene.add(ambientLight);
-
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            directionalLight.position.set(1, 1, 1);
-            game.scene.add(directionalLight);
-
-            game.raycaster = new THREE.Raycaster();
-            game.mouse = new THREE.Vector2();
-
-            console.log("Initializing interactions...");
-            game.interactions = initInteractions(game);
-
-            window.addEventListener('resize', onWindowResize);
-            document.addEventListener('click', onClickMine, false);
-            document.addEventListener('keydown', onKeyDown);
-
-            console.log("Starting animation loop...");
-            animate();
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const deltaTime = 1 / 60;
-
-            if (game.controls) {
-                game.controls.update();
-            }
-
-            if (game.interactions) {
-                game.interactions.update();
-            }
-
-            if (!game.onGround) {
-                game.velocity.y += game.gravity * deltaTime;
-            }
-
-            game.character.position.y += game.velocity.y * deltaTime;
-
-            if (game.character.position.y < 2) {
-                game.character.position.y = 2;
-                game.velocity.y = 0;
-                game.onGround = true;
+    function onClickMine() {
+        const nearbyRock = checkProximityToDiamondRocks();
+        if (nearbyRock) {
+            console.log("Mining nearby rock:", nearbyRock);
+            if (!game.isPickaxeAnimating) {
+                animatePickaxe(() => {
+                    mineRock(nearbyRock);
+                });
             } else {
-                game.onGround = false;
+                console.log("Pickaxe is already animating, but rock is nearby");
             }
-
-            checkCollisions();
-
-            if (game.debugMode && Math.random() < 0.01) {
-                debugLog(`Character position: ${game.character.position.toArray().map(v => v.toFixed(2))}`);
-                checkProximityToDiamondRocks();
+        } else {
+            console.log("No nearby rock to mine");
+            if (!game.isPickaxeAnimating) {
+                animatePickaxe();
             }
+        }
+    }
 
-            game.renderer.render(game.scene, game.camera);
+    function mineRock(rock) {
+        console.log("Mining rock:", rock);
+        
+        // Remove the rock group from the scene
+        if (rock.parent) {
+            rock.parent.remove(rock);
+        }
+        
+        // Remove from diamondRocks array
+        const index = game.diamondRocks.indexOf(rock);
+        if (index > -1) {
+            game.diamondRocks.splice(index, 1);
+            console.log("Removed rock from diamondRocks. New length:", game.diamondRocks.length);
         }
 
-        function onWindowResize() {
-            game.camera.aspect = window.innerWidth / window.innerHeight;
-            game.camera.updateProjectionMatrix();
-            game.renderer.setSize(window.innerWidth, window.innerHeight);
+        // Find and remove the associated collision object
+        const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedRock === rock);
+        if (collisionIndex > -1) {
+            const collisionObject = game.collisionObjects[collisionIndex];
+            if (collisionObject.parent) {
+                collisionObject.parent.remove(collisionObject);
+            }
+            game.collisionObjects.splice(collisionIndex, 1);
+            console.log("Removed collision object. New length:", game.collisionObjects.length);
+        } else {
+            console.warn("Could not find associated collision object for rock:", rock);
         }
 
-        function initInteractions(game) {
-            const interactions = {
-                update: function() {
-                    // Update logic for interactions (if needed)
+        // Dispose of geometries and materials
+        rock.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                if (child.geometry) {
+                    child.geometry.dispose();
                 }
-            };
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            }
+        });
 
-            return interactions;
+        // Force a scene update
+        game.scene.updateMatrixWorld(true);
+
+        console.log("Rock mined and removed from scene!");
+    }
+
+    function onKeyDown(event) {
+        if (event.key === 'd' || event.key === 'D') {
+            game.debugMode = !game.debugMode;
+            console.log(`Debug mode ${game.debugMode ? 'enabled' : 'disabled'}`);
         }
-
-        function createPickaxe() {
-            const pickaxeGroup = new THREE.Group();
-
-            const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 8);
-            const handleMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-            const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-            handle.rotation.x = Math.PI / 2;
-            handle.scale.set(1.3, 1, 1.3);
-            pickaxeGroup.add(handle);
-
-            const headGeometry = new THREE.ConeGeometry(0.2, 1, 8);
-            const headMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
-            const head = new THREE.Mesh(headGeometry, headMaterial);
-            head.rotation.z = Math.PI / 2 + 1.5;
-            head.position.set(0, 0, -1);
-            head.scale.set(0.7, 1, 0.7);
-            pickaxeGroup.add(head);
-
-            return pickaxeGroup;
-        }
-
-        function onClickMine() {
+        if (event.key === 'p' || event.key === 'P') {
+            console.log("Forced proximity check:");
             const nearbyRock = checkProximityToDiamondRocks();
             if (nearbyRock) {
-                console.log("Mining nearby rock:", nearbyRock);
-                if (!game.isPickaxeAnimating) {
-                    animatePickaxe(() => {
-                        mineRock(nearbyRock);
-                    });
-                } else {
-                    console.log("Pickaxe is already animating, but rock is nearby");
-                }
+                console.log("Nearby rock detected:", nearbyRock);
             } else {
-                console.log("No nearby rock to mine");
-                if (!game.isPickaxeAnimating) {
-                    animatePickaxe();
-                }
+                console.log("No nearby rocks detected");
             }
         }
+    }
 
-        function animatePickaxe(callback) {
-            if (!game.pickaxe) {
-                console.error("Pickaxe not found in game object");
-                return;
-            }
+    // Placeholder functions (you'll need to define these or include them from other files)
+    function createMine() { /* ... */ }
+    function createCharacter() { /* ... */ }
+    function createPickaxe() { /* ... */ }
+    function initControls() { /* ... */ }
+    function animatePickaxe() { /* ... */ }
+    function checkCollisions() { /* ... */ }
+    function checkProximityToDiamondRocks() { /* ... */ }
+    function debugLog() { /* ... */ }
 
-            game.isPickaxeAnimating = true;
-
-            const duration = 500;
-            const startRotation = new THREE.Vector3(-10.69, 0.00, 0.11);
-            const endRotation = new THREE.Vector3(-10.69 - Math.PI / 4, 0.00, 0.11);
-            const startTime = Date.now();
-
-            function animate() {
-                const currentTime = Date.now();
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                const swingAngle = Math.sin(progress * Math.PI);
-                game.pickaxe.rotation.x = startRotation.x + swingAngle * (endRotation.x - startRotation.x);
-                game.pickaxe.rotation.y = startRotation.y + swingAngle * (endRotation.y - startRotation.y);
-                game.pickaxe.rotation.z = startRotation.z + swingAngle * (endRotation.z - startRotation.z);
-
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    game.pickaxe.rotation.set(startRotation.x, startRotation.y, startRotation.z);
-                    game.isPickaxeAnimating = false;
-                    if (callback) callback();
-                }
-            }
-
-            animate();
-        }
-
-        function checkCollisions() {
-            debugLog(`Checking collisions. Number of collision objects: ${game.collisionObjects.length}`);
-            const characterPosition = game.character.position.clone();
-            const characterRadius = 1;
-
-            for (let i = 0; i < game.collisionObjects.length; i++) {
-                const object = game.collisionObjects[i];
-                
-                if (!object) {
-                    console.warn(`Collision object at index ${i} is undefined or null`);
-                    continue;
-                }
-
-                if (!(object instanceof THREE.Mesh)) {
-                    console.warn(`Collision object at index ${i} is not a THREE.Mesh:`, object);
-                    continue;
-                }
-
-                if (!object.geometry) {
-                    console.warn(`Collision object at index ${i} has no geometry:`, object);
-                    continue;
-                }
-
-                if (!object.geometry.boundingSphere) {
-                    object.geometry.computeBoundingSphere();
-                }
-
-                const objectPosition = object.position.clone();
-                const objectRadius = object.geometry.boundingSphere.radius * Math.max(object.scale.x, object.scale.y, object.scale.z);
-
-                const distance = characterPosition.distanceTo(objectPosition);
-                const minDistance = characterRadius + objectRadius;
-
-                if (distance < minDistance) {
-                    const pushVector = characterPosition.sub(objectPosition).normalize().multiplyScalar(minDistance - distance);
-                    game.character.position.add(pushVector);
-                    
-                    if (game.controls && game.controls.target) {
-                        game.controls.target.add(pushVector);
-                    }
-                }
-            }
-        }
-
-        function checkProximityToDiamondRocks() {
-            const characterPosition = game.character.position;
-            const maxMiningDistance = 10;
-
-            debugLog(`Checking proximity. Character position: ${characterPosition.toArray().map(v => v.toFixed(2))}`);
-
-            let nearestRock = null;
-            let nearestDistance = Infinity;
-
-            for (let i = 0; i < game.diamondRocks.length; i++) {
-                const rock = game.diamondRocks[i];
-                const distance = characterPosition.distanceTo(rock.position);
-                debugLog(`Distance to diamond rock ${i}: ${distance.toFixed(2)}, Rock position: ${rock.position.toArray().map(v => v.toFixed(2))}`);
-                
-                if (distance < nearestDistance) {
-                    nearestRock = rock;
-                    nearestDistance = distance;
-                }
-            }
-
-            if (nearestDistance <= maxMiningDistance) {
-                console.log(`Nearest diamond rock is within mining distance: ${nearestDistance.toFixed(2)}`);
-                return nearestRock;
-            } else {
-                debugLog(`Nearest diamond rock is too far: ${nearestDistance.toFixed(2)}`);
-                return null;
-            }
-        }
-
-        function mineRock(rock) {
-            console.log("Mining rock:", rock);
-            
-            // Remove the rock group from the scene
-            if (rock.parent) {
-                rock.parent.remove(rock);
-            }
-            
-            // Remove from diamondRocks array
-            const index = game.diamondRocks.indexOf(rock);
-            if (index > -1) {
-                game.diamondRocks.splice(index, 1);
-                console.log("Removed rock from diamondRocks. New length:", game.diamondRocks.length);
-            }
-
-            // Find and remove the associated collision object
-            const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedRock === rock);
-            if (collisionIndex > -1) {
-                const collisionObject = game.collisionObjects[collisionIndex];
-                if (collisionObject.parent) {
-                    collisionObject.parent.remove(collisionObject);
-                }
-                game.collisionObjects.splice(collisionIndex, 1);
-                console.log("Removed collision object. New length:", game.collisionObjects.length);
-            } else {
-                console.warn("Could not find associated collision object for rock:", rock);
-            }
-
-            // Dispose of geometries and materials
-            rock.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    if (child.geometry) {
-                        child.geometry.dispose();
-                    }
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                }
-            });
-
-            // Force a scene update
-            game.scene.updateMatrixWorld(true);
-
-            console.log("Rock mined and removed from scene!");
-        }
-
-        function createMine() {
-            const rockMaterials = [
-                new THREE.MeshPhongMaterial({ color: 0x808080 }),
-                new THREE.MeshPhongMaterial({ color: 0xA0A0A0 }),
-                new THREE.MeshPhongMaterial({ color: 0x606060 }),
-                new THREE.MeshPhongMaterial({ color: 0x909090 }),
-                new THREE.MeshPhongMaterial({ color: 0x707070 }),
-            ];
-
-            const mine = new THREE.Group();
-
-            const floorGeometry = new THREE.PlaneGeometry(100, 100);
-            const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x3a3a3a });
-            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-            floor.rotation.x = -Math.PI / 2;
-            mine.add(floor);
-
-            const wallHeight = 20;
-            const blockSize = 5;
-
-            for (let x = -50; x <= 50; x += blockSize) {
-                for (let y = 0; y < wallHeight; y += blockSize) {
-                    createRockBlock(mine, x, y, -50, blockSize, rockMaterials);
-                    createRockBlock(mine, x, y, 50, blockSize, rockMaterials);
-                    createRockBlock(mine, -50, y, x, blockSize, rockMaterials);
-                    if (Math.abs(x) > 20) {
-                        createRockBlock(mine, 50, y, x, blockSize, rockMaterials);
-                    }
-                }
-            }
-
-            const wallPositions = [
-                { x: -50, z: 0, rotation: Math.PI / 2 },
-                { x: 50, z: 0, rotation: -Math.PI / 2 },
-                { x: 0, z: -50, rotation: 0 },
-                { x: 0, z: 50, rotation: Math.PI },
-            ];
-
-            const numDiamondRocks = 3 + Math.floor(Math.random() * 2);
-            console.log(`Attempting to create ${numDiamondRocks} diamond rocks`);
-
-            for (let i = 0; i < numDiamondRocks; i++) {
-                const wallIndex = Math.floor(Math.random() * wallPositions.length);
-                const wall = wallPositions[wallIndex];
-                const y = Math.random() * 15;
-                let offset = (Math.random() - 0.5) * 80;
-
-                if (wall.x === 50) {
-                    offset = Math.max(20, Math.abs(offset)) * Math.sign(offset);
-                }
-
-                if (wall.x !== 0) {
-                    createSingleRockWithDiamond(mine, wall.x, y, offset, blockSize, rockMaterials, wall.rotation);
-                } else {
-                    createSingleRockWithDiamond(mine, offset, y, wall.z, blockSize, rockMaterials, wall.rotation);
-                }
-            }
-
-            return mine;
-        }
-
-        function createRockBlock(parent, x, y, z, size, materials) {
-            const jitter = size * 0.2;
-            const rockGeometry = new THREE.BoxGeometry(size, size, size);
-            const rockMaterial = materials[Math.floor(Math.random() * materials.length)];
-            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-            rock.position.set(
-                x + (Math.random() - 0.5) * jitter,
-                y + (Math.random() - 0.5) * jitter,
-                z + (Math.random() - 0.5) * jitter
-            );
-            parent.add(rock);
-        }
-
-        function createSingleRockWithDiamond(parent, x, y, z, size, materials, rotation) {
-            const rockGroup = new THREE.Group();
-            
-            const rockGeometry = new THREE.BoxGeometry(size * 1.5, size * 1.5, size);
-            const rockMaterial = materials[Math.floor(Math.random() * materials.length)];
-            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-            rockGroup.add(rock);
-
-            const diamondGeometry = new THREE.OctahedronGeometry(size * 0.2);
-            const diamondMaterial = new THREE.MeshPhongMaterial({
-                color: 0x00ffff,
-                emissive: 0x00ffff,
-                emissiveIntensity: 0.5,
-                shininess: 100
-            });
-            const diamond = new THREE.Mesh(diamondGeometry, diamondMaterial);
-            diamond.position.set(0, 0, size * 0.6);
-            rockGroup.add(diamond);
-
-            const stickOutDistance = size * 0.5;
-            if (rotation === 0) {
-                rockGroup.position.set(x, y, z + stickOutDistance);
-            } else if (rotation === Math.PI) {
-                rockGroup.position.set(x, y, z - stickOutDistance);
-            } else if (rotation === Math.PI / 2) {
-                rockGroup.position.set(x + stickOutDistance, y, z);
-            } else if (rotation === -Math.PI / 2) {
-                rockGroup.position.set(x - stickOutDistance, y, z);
-            }
-            rockGroup.rotation.y = rotation;
-            parent.add(rockGroup);
-
-            if (!game.diamondRocks) game.diamondRocks = [];
-            game.diamondRocks.push(rockGroup);
-            console.log(`Diamond rock created at position: ${rockGroup.position.toArray().map(v => typeof v === 'number' ? v.toFixed(2) : v)}, Total: ${game.diamondRocks.length}`);
-
-            const collisionGeometry = new THREE.BoxGeometry(size * 1.5, size * 1.5, size);
-            const collisionMaterial = new THREE.MeshBasicMaterial({ visible: false });
-            const collisionMesh = new THREE.Mesh(collisionGeometry, collisionMaterial);
-            collisionMesh.position.copy(rockGroup.position);
-            collisionMesh.rotation.copy(rockGroup.rotation);
-            collisionMesh.userData.associatedRock = rockGroup;
-            parent.add(collisionMesh);
-
-            if (!game.collisionObjects) game.collisionObjects = [];
-            game.collisionObjects.push(collisionMesh);
-
-            console.log(`Created collision object:`, {
-                type: collisionMesh.type,
-                position: collisionMesh.position.toArray().map(v => typeof v === 'number' ? v.toFixed(2) : v),
-                rotation: collisionMesh.rotation.toArray().map(v => typeof v === 'number' ? v.toFixed(2) : v),
-                scale: collisionMesh.scale.toArray().map(v => typeof v === 'number' ? v.toFixed(2) : v),
-                geometry: {
-                    type: collisionMesh.geometry.type,
-                    parameters: collisionMesh.geometry.parameters
-                },
-                material: {
-                    type: collisionMaterial.type,
-                    visible: collisionMaterial.visible
-                }
-            });
-        }
-
-        function createCharacter() {
-            const characterGeometry = new THREE.BoxGeometry(2, 4, 2);
-            const characterMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000 });
-            const character = new THREE.Mesh(characterGeometry, characterMaterial);
-            character.position.set(0, 2, 0);
-            return character;
-        }
-
-        function onKeyDown(event) {
-            if (event.key === 'd' || event.key === 'D') {
-                game.debugMode = !game.debugMode;
-                console.log(`Debug mode ${game.debugMode ? 'enabled' : 'disabled'}`);
-            }
-            if (event.key === 'p' || event.key === 'P') {
-                console.log("Forced proximity check:");
-                const nearbyRock = checkProximityToDiamondRocks();
-                if (nearbyRock) {
-                    console.log("Nearby rock detected:", nearbyRock);
-                } else {
-                    console.log("No nearby rocks detected");
-                }
-            }
-        }
-
-        // Initialize the game when the window loads
-        window.addEventListener('load', initGame);
-    </script>
-
+    window.addEventListener('load', initGame);
+    </script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/character.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/pickaxe.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
     <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
 </body>
 </html>
