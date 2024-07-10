@@ -12,8 +12,8 @@ function initControls(game) {
         lastMouseMoveTime: 0,
         cameraZoom: 8,
         characterYaw: 0,
-        cameraSpeed: 0.002,
-        cameraSmoothing: 0.1,
+        cameraSpeed: 0.0016,
+        cameraSmoothing: 0.08,
         targetYaw: 0,
         targetPitch: 18 * Math.PI / 180,
         update: updateControls
@@ -112,17 +112,6 @@ function initControls(game) {
         controls.yaw += (controls.targetYaw - controls.yaw) * controls.cameraSmoothing;
         controls.pitch += (controls.targetPitch - controls.pitch) * controls.cameraSmoothing;
     }
-
-    // Camera controls event listeners
-    document.getElementById('cameraSpeed').addEventListener('input', function(e) {
-        controls.cameraSpeed = parseFloat(e.target.value);
-        document.getElementById('cameraSpeedValue').textContent = controls.cameraSpeed.toFixed(3);
-    });
-
-    document.getElementById('cameraSmoothing').addEventListener('input', function(e) {
-        controls.cameraSmoothing = parseFloat(e.target.value);
-        document.getElementById('cameraSmoothingValue').textContent = controls.cameraSmoothing.toFixed(2);
-    });
 
     return controls;
 }
