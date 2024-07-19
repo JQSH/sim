@@ -7,17 +7,49 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         canvas { display: block; }
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            color: #FFD700;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        #diamondIcon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: #B9F2FF;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        #diamondCounter {
+            display: inline-block;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
+    <div id="gameUI">
+        <div id="diamondIcon"></div>
+        <span id="diamondCounter">x 0</span>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/main.js"></script>
+    <script src="networkInterpolation.js"></script>
     <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
     <script src="https://jqsh.github.io/sim/mine/character.js"></script>
     <script src="https://jqsh.github.io/sim/mine/pickaxe.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/interactions.js"></script>
     <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
     <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
+    <script src="../mine/interactions.js"></script>
+    <script src="main.js"></script>
     <script>
         window.addEventListener('load', initGame);
     </script>
