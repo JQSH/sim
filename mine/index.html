@@ -1,9 +1,107 @@
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mine - Loading</title>
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #000;
+        font-family: 'Arial', sans-serif;
+        color: #fff;
+    }
+    #loadingScreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease-out;
+    }
+    #loadingBar {
+        width: 200px;
+        height: 4px;
+        background-color: #333;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    #loadingProgress {
+        width: 0%;
+        height: 100%;
+        background-color: #00ff00;
+        transition: width 0.5s ease-out;
+    }
+    #loadingText {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+    #funFact {
+        font-size: 14px;
+        max-width: 300px;
+        text-align: center;
+        opacity: 0.7;
+    }
+    #pauseMenu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    }
+    #pauseMenu h2 {
+        font-size: 36px;
+        margin-bottom: 30px;
+        color: #FFD700;
+    }
+    #pauseMenu button {
+        font-size: 18px;
+        padding: 10px 20px;
+        margin: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    #pauseMenu button:hover {
+        background-color: #45a049;
+    }
+</style>
+</head>
+<body>
+<div id="loadingScreen">
+    <div id="loadingText">Loading Mine...</div>
+    <div id="loadingBar"><div id="loadingProgress"></div></div>
+    <div id="funFact">Did you know? The deepest mine in the world is 4km deep!</div>
+</div>
+
+<div id="pauseMenu">
+    <h2>Pause Menu</h2>
+    <button id="resumeButton">Resume</button>
+    <button id="settingsButton">Settings</button>
+    <button id="quitButton">Quit</button>
+</div>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSim Cartoon Mine Explorer - Materials</title>
+    <title>Mine </title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         canvas { display: block; }
@@ -36,22 +134,85 @@
     </style>
 </head>
 <body>
-    <div id="gameUI">
-        <div id="diamondIcon"></div>
-        <span id="diamondCounter">x 0</span>
-    </div>
     <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="networkInterpolation.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/character.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/pickaxe.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
-    <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
-    <script src="../mine/interactions.js"></script>
-    <script src="main.js"></script>
+    <script src="collision.js"></script>
+    <script src="controls.js"></script>
+    <script src="mine.js"></script>
+    <script src="ui.js"></script>
+    <script src="interactions.js"></script>
+    <script src="character.js"></script>
+    <script src="pickaxe.js"></script>
+    <script src="core.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="audio.js"></script>
+    <script src="particles.js"></script>
+    <script src="utils.js"></script>
     <script>
-        window.addEventListener('load', initGame);
+        // Simulating loading process
+        let progress = 0;
+        const loadingInterval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress >= 100) {
+                progress = 100;
+                clearInterval(loadingInterval);
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }, 500);
+            }
+            document.getElementById('loadingProgress').style.width = `${progress}%`;
+        }, 200);
+
+        window.addEventListener('load', () => {
+            initGame();
+            initUI();
+            initMultiplayer();
+            initPauseMenu();
+            
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('click', onClickMine, false);
+        });
+
+        function initPauseMenu() {
+            const pauseMenu = document.getElementById('pauseMenu');
+            const resumeButton = document.getElementById('resumeButton');
+            const settingsButton = document.getElementById('settingsButton');
+            const quitButton = document.getElementById('quitButton');
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    togglePauseMenu();
+                }
+            });
+
+            resumeButton.addEventListener('click', () => {
+                togglePauseMenu();
+            });
+
+            settingsButton.addEventListener('click', () => {
+                // Implement settings functionality
+                console.log('Settings button clicked');
+            });
+
+            quitButton.addEventListener('click', () => {
+                // Implement quit functionality
+                console.log('Quit button clicked');
+            });
+        }
+
+        function togglePauseMenu() {
+            const pauseMenu = document.getElementById('pauseMenu');
+            if (pauseMenu.style.display === 'none' || pauseMenu.style.display === '') {
+                pauseMenu.style.display = 'flex';
+                // Pause game logic here
+                console.log('Game paused');
+            } else {
+                pauseMenu.style.display = 'none';
+                // Resume game logic here
+                console.log('Game resumed');
+            }
+        }
     </script>
 </body>
 </html>

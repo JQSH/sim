@@ -6,8 +6,7 @@ function initControls(game) {
         keys: { w: false, a: false, s: false, d: false },
         yaw: 0,
         pitch: 18 * Math.PI / 180,
-        minPitch: 0 * Math.PI / 180,
-        maxPitch: 90 * Math.PI / 180,
+        minPitch: 16 * Math.PI / 180,
         defaultPitch: 18 * Math.PI / 180,
         resetDelay: 500,
         resetSpeed: 0.01,
@@ -55,16 +54,13 @@ function initControls(game) {
         controls.targetYaw -= movementX * controls.cameraSpeed;
         controls.targetPitch -= movementY * controls.cameraSpeed;
 
-        controls.targetPitch = Math.max(controls.minPitch, Math.min(controls.maxPitch, controls.targetPitch));
+        controls.targetPitch = Math.max(controls.minPitch, Math.min(Math.PI / 2, controls.targetPitch));
         
         controls.lastMouseMoveTime = Date.now();
     }
 
     function updateControls() {
-        const characterMoved = moveCharacter();
-        if (characterMoved) {
-            controls.targetPitch = controls.defaultPitch;
-        }
+        moveCharacter();
         updateCameraPosition();
         resetCameraTilt();
         smoothCamera();
@@ -94,16 +90,15 @@ function initControls(game) {
     function moveCharacter() {
         const movement = calculateMovement(controls.keys, controls.yaw);
 
-        let characterMoved = false;
         if (movement.length() > 0) {
             game.character.position.add(movement);
             controls.characterYaw = controls.yaw;
-            characterMoved = true;
         }
 
+        game.character.position.x = Math.max(-45, Math.min(45, game.character.position.x));
+        game.character.position.z = Math.max(-45, Math.min(45, game.character.position.z));
+
         game.character.rotation.y = controls.characterYaw;
-        
-        return characterMoved;
     }
 
     function updateCameraPosition() {
@@ -125,10 +120,7 @@ function initControls(game) {
 
     function smoothCamera() {
         controls.yaw += (controls.targetYaw - controls.yaw) * controls.cameraSmoothing;
-        
-        const characterMoving = Object.values(controls.keys).some(key => key);
-        const pitchSmoothing = characterMoving ? 0.2 : controls.cameraSmoothing;
-        controls.pitch += (controls.targetPitch - controls.pitch) * pitchSmoothing;
+        controls.pitch += (controls.targetPitch - controls.pitch) * controls.cameraSmoothing;
     }
 
     gameControls = {

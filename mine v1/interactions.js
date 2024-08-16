@@ -26,8 +26,9 @@ function onClickMine() {
             game.collectSound.play();
         }
 
-        // Mine the rock
-        mineDiamondRock(nearbyRock);
+        // Immediately remove the rock and create spark effect
+        mineRock(nearbyRock);
+        window.createSparkEffect(nearbyRock.position, game);
 
         // Animate pickaxe
         animatePickaxe(() => {
@@ -63,41 +64,40 @@ function onClickMine() {
     }
 }
 
-function mineDiamondRock(rock) {
-    console.log(`Mining rock at (${rock.position.x.toFixed(2)}, ${rock.position.y.toFixed(2)}, ${rock.position.z.toFixed(2)})`);
-
-    // Remove the rock from diamondRocks array
-    const index = game.diamondRocks.indexOf(rock);
-    if (index > -1) {
-        game.diamondRocks.splice(index, 1);
-        console.log(`Removed rock from diamondRocks. New length: ${game.diamondRocks.length}`);
-    }
-
-    // Remove the associated collision object
-    const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedBlock === rock);
-    if (collisionIndex > -1) {
-        const collisionObject = game.collisionObjects[collisionIndex];
-        game.scene.remove(collisionObject);
-        game.collisionObjects.splice(collisionIndex, 1);
-        console.log(`Removed collision object. New length: ${game.collisionObjects.length}`);
-    }
-
-    // Remove the rock from the scene
+function mineRock(rock) {
+    console.log("Mining rock:", rock);
+    
+    // Remove the rock group from the scene
     if (rock.parent) {
         rock.parent.remove(rock);
     }
-    console.log("Rock removed from scene");
+    
+    // Remove from diamondRocks array
+    const index = game.diamondRocks.indexOf(rock);
+    if (index > -1) {
+        game.diamondRocks.splice(index, 1);
+        console.log("Removed rock from diamondRocks. New length:", game.diamondRocks.length);
+    }
 
-    // Update shared block data
-    const x = Math.round(rock.position.x);
-    const y = Math.round(rock.position.y);
-    const z = Math.round(rock.position.z);
-    game.blocksData.get(`${x},${y},${z}`).put({exists: false});
+    // Find and remove the associated collision object
+    const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedRock === rock);
+    if (collisionIndex > -1) {
+        const collisionObject = game.collisionObjects[collisionIndex];
+        if (collisionObject.parent) {
+            collisionObject.parent.remove(collisionObject);
+        }
+        game.collisionObjects.splice(collisionIndex, 1);
+        console.log("Removed collision object. New length:", game.collisionObjects.length);
+    } else {
+        console.warn("Could not find associated collision object for rock:", rock);
+    }
 
     // Dispose of geometries and materials
     rock.traverse((child) => {
         if (child instanceof THREE.Mesh) {
-            if (child.geometry) child.geometry.dispose();
+            if (child.geometry) {
+                child.geometry.dispose();
+            }
             if (child.material) {
                 if (Array.isArray(child.material)) {
                     child.material.forEach(material => material.dispose());
@@ -108,21 +108,11 @@ function mineDiamondRock(rock) {
         }
     });
 
-    // Create spark particles
-    window.createSparkEffect(rock.position, game);
+    // Force a scene update
+    game.scene.updateMatrixWorld(true);
 
-    // Reveal new blocks
-    console.log("Attempting to reveal new blocks...");
-    if (typeof game.revealDiamondBlocks === 'function') {
-        game.revealDiamondBlocks(rock.position.x, rock.position.y, rock.position.z);
-    } else {
-        console.error("game.revealDiamondBlocks is not a function");
-    }
     console.log("Rock mined and removed from scene!");
 }
-
-// Attach mineDiamondRock to the game object
-game.mineDiamondRock = mineDiamondRock;
 
 function animatePickaxe(callback) {
     if (game.isPickaxeAnimating) return;
@@ -159,4 +149,3 @@ function animatePickaxe(callback) {
 // Expose necessary functions to the global scope
 window.initInteractions = initInteractions;
 window.onClickMine = onClickMine;
-window.mineDiamondRock = mineDiamondRock;

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Cartoon Mine Explorer - Materials</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 16px;
+            color: #FFD700;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 3px solid #FFD700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        #diamondIcon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: #B9F2FF;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        #diamondCounter {
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="ui.js"></script>
+    <script src="interactions.js"></script>
+    <script src="character.js"></script>
+    <script src="pickaxe.js"></script>
+    <script src="controls.js"></script>
+    <script src="core.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="audio.js"></script>
+    <script src="collision.js"></script>
+    <script src="particles.js"></script>
+    <script src="utils.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            initGame();
+            initUI();
+            initMultiplayer();
+            
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('click', onClickMine, false);
+            document.addEventListener('keydown', onKeyDown);
+        });
+    </script>
+</body>
+</html>

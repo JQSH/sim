@@ -37,11 +37,6 @@ function createMine() {
         }
     }
 
-    // Initialize blocksData before creating visible diamond blocks
-    if (typeof initBlocksData === 'function') {
-        initBlocksData();
-    }
-
     // Create mineable diamond blocks in the northern area
     createVisibleDiamondBlocks(mine, diamondAreaWidth, diamondAreaLength, wallHeight, blockSize);
 
@@ -114,10 +109,6 @@ function createVisibleDiamondBlocks(mine, width, length, height, blockSize) {
         game.diamondRocks.push(diamondBlock);
     
         blockGrid[x][y][z].created = true;
-        
-        if (game.blocksData) {
-            game.blocksData.get(`${x},${y},${z}`).put({exists: true});
-        }
     }
 
     function createVisibleBlocks() {
@@ -167,9 +158,6 @@ function createVisibleDiamondBlocks(mine, width, length, height, blockSize) {
             }
         }
     };
-
-    // Expose createBlock function
-    game.createBlock = createBlock;
 }
 
 function createDiamondBlock(x, y, z, size) {
@@ -305,9 +293,4 @@ function createSingleRockWithDiamond(parent, x, y, z, size, materials, rotation)
     return rockGroup;
 }
 
-// Expose necessary functions to the global scope
 window.createMine = createMine;
-window.createVisibleDiamondBlocks = createVisibleDiamondBlocks;
-window.createDiamondBlock = createDiamondBlock;
-window.createRockBlock = createRockBlock;
-window.createSingleRockWithDiamond = createSingleRockWithDiamond;

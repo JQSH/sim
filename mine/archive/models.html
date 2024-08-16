@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Cartoon Mine Explorer - Materials</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    // main.js content
+    window.game = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        mine: null,
+        character: null,
+        controls: null,
+        raycaster: null,
+        mouse: null,
+        interactions: null,
+        pickaxe: null,
+        isPickaxeAnimating: false,
+        collisionObjects: [],
+        diamondRocks: [],
+        gravity: -9.8,
+        velocity: new THREE.Vector3(),
+        onGround: false,
+        debugMode: false,
+        diamondCount: 0,
+        sparkParticles: [],
+        clock: new THREE.Clock(),
+        collectSound: null
+    };
+
+    function initGame() {
+        console.log("Initializing game...");
+
+        game.collisionObjects = [];
+        game.diamondRocks = [];
+
+        game.scene = new THREE.Scene();
+        game.scene.background = new THREE.Color(0x87CEEB);
+
+        game.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        game.camera.position.set(0, 10, 10);
+
+        game.renderer = new THREE.WebGLRenderer({ antialias: true });
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(game.renderer.domElement);
+
+        console.log("Creating mine...");
+        game.mine = createMine();
+        game.scene.add(game.mine);
+
+        console.log("Creating character...");
+        game.character = createCharacter();
+        game.scene.add(game.character);
+
+        console.log("Creating pickaxe...");
+        game.pickaxe = createPickaxe();
+        game.character.add(game.pickaxe);
+
+        game.pickaxe.position.set(1.60, 0.80, -0.60);
+        game.pickaxe.rotation.set(-10.69, 0.00, 0.11);
+        game.pickaxe.scale.set(1.5, 1.5, 1.5);
+
+        console.log("Pickaxe created and added to character:", game.pickaxe instanceof THREE.Group);
+
+        console.log("Initializing controls...");
+        game.controls = initControls(game);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        game.scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(1, 1, 1);
+        game.scene.add(directionalLight);
+
+        game.raycaster = new THREE.Raycaster();
+        game.mouse = new THREE.Vector2();
+
+        console.log("Initializing interactions...");
+        game.interactions = initInteractions(game);
+
+        console.log("Generating retro coin sound...");
+        game.collectSound = generateRetroCoinSound();
+
+        window.addEventListener('resize', onWindowResize);
+        document.addEventListener('click', onClickMine, false);
+        document.addEventListener('keydown', onKeyDown);
+
+        console.log("Starting animation loop...");
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = game.clock.getDelta();
+
+        if (game.controls) {
+            game.controls.update();
+        }
+
+        if (game.interactions) {
+            game.interactions.update();
+        }
+
+        if (!game.onGround) {
+            game.velocity.y += game.gravity * deltaTime;
+        }
+
+        game.character.position.y += game.velocity.y * deltaTime;
+
+        if (game.character.position.y < 2) {
+            game.character.position.y = 2;
+            game.velocity.y = 0;
+            game.onGround = true;
+        } else {
+            game.onGround = false;
+        }
+
+        checkCollisions();
+
+        if (game.debugMode && Math.random() < 0.01) {
+            debugLog(`Character position: ${game.character.position.toArray().map(v => v.toFixed(2))}`);
+            checkProximityToDiamondRocks();
+        }
+
+        updateSparkParticles(deltaTime);
+
+        game.renderer.render(game.scene, game.camera);
+    }
+
+    function onWindowResize() {
+        game.camera.aspect = window.innerWidth / window.innerHeight;
+        game.camera.updateProjectionMatrix();
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    // pickaxe.js content
+    function createPickaxe() {
+        const pickaxeGroup = new THREE.Group();
+
+        const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 8);
+        const handleMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+        handle.rotation.x = Math.PI / 2;
+        handle.scale.set(1.3, 1, 1.3);
+        pickaxeGroup.add(handle);
+
+        const headGeometry = new THREE.ConeGeometry(0.2, 1, 8);
+        const headMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.rotation.z = Math.PI / 2 + 1.5;
+        head.position.set(0, 0, -1);
+        head.scale.set(0.7, 1, 0.7);
+        pickaxeGroup.add(head);
+
+        return pickaxeGroup;
+    }
+
+    function animatePickaxe(callback) {
+        if (!game.pickaxe) {
+            console.error("Pickaxe not found in game object");
+            return;
+        }
+
+        game.isPickaxeAnimating = true;
+
+        const duration = 500;
+        const startRotation = new THREE.Vector3(-10.69, 0.00, 0.11);
+        const endRotation = new THREE.Vector3(-10.69 - Math.PI / 4, 0.00, 0.11);
+        const startTime = Date.now();
+
+        function animate() {
+            const currentTime = Date.now();
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            const swingAngle = Math.sin(progress * Math.PI);
+            game.pickaxe.rotation.x = startRotation.x + swingAngle * (endRotation.x - startRotation.x);
+            game.pickaxe.rotation.y = startRotation.y + swingAngle * (endRotation.y - startRotation.y);
+            game.pickaxe.rotation.z = startRotation.z + swingAngle * (endRotation.z - startRotation.z);
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                game.pickaxe.rotation.set(startRotation.x, startRotation.y, startRotation.z);
+                game.isPickaxeAnimating = false;
+                if (callback) callback();
+            }
+        }
+
+        animate();
+    }
+
+    // character.js content
+    function createCharacter() {
+        const characterGeometry = new THREE.BoxGeometry(2, 4, 2);
+        const characterMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000 });
+        const character = new THREE.Mesh(characterGeometry, characterMaterial);
+        character.position.set(0, 2, 0);
+        return character;
+    }
+
+    window.addEventListener('load', initGame);
+    </script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/interactions.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
+</body>
+</html>

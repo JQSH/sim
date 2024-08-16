@@ -1,9 +1,4 @@
-// main.js
-
-const gun = Gun(['https://multiplayer-ptsb.onrender.com/gun']);
-const gameData = gun.get('mining-game-v1');
-
-window.game = {
+var game = {
     scene: null,
     camera: null,
     renderer: null,
@@ -25,14 +20,32 @@ window.game = {
     sparkParticles: [],
     clock: new THREE.Clock(),
     collectSound: null,
-    playerId: 'player-' + Math.random().toString(36).substr(2, 9),
+    sessionId: null,
     players: {},
-    gun: gun,
-    gameData: gameData
+    gun: null,
+    gameData: null,
+    heartbeatInterval: null,
+    inputState: {
+        w: false,
+        a: false,
+        s: false,
+        d: false
+    },
+    inputDurations: {
+        w: 0,
+        a: 0,
+        s: 0,
+        d: 0
+    },
+    lastPosition: new THREE.Vector3(),
+    lastUpdateTime: 0
 };
 
 function initGame() {
     console.log("Initializing game...");
+
+    initSession();
+    startHeartbeat();
 
     game.collisionObjects = [];
     game.diamondRocks = [];
@@ -55,6 +68,9 @@ function initGame() {
     game.character = createCharacter();
     game.scene.add(game.character);
 
+    // Initialize lastCharacterPosition
+    game.lastCharacterPosition = game.character.position.clone();
+
     console.log("Creating pickaxe...");
     game.pickaxe = createPickaxe();
     game.character.add(game.pickaxe);
@@ -63,10 +79,8 @@ function initGame() {
     game.pickaxe.rotation.set(-10.69, 0.00, 0.11);
     game.pickaxe.scale.set(1.5, 1.5, 1.5);
 
-    console.log("Pickaxe created and added to character:", game.pickaxe instanceof THREE.Group);
-
     console.log("Initializing controls...");
-    game.controls = initControls(game);
+    game.controls = initControls(game); 
 
     const ambientLight = new THREE.AmbientLight(0x404040);
     game.scene.add(ambientLight);
@@ -85,11 +99,10 @@ function initGame() {
     game.collectSound = generateRetroCoinSound();
 
     console.log("Initializing multiplayer...");
-    listenToPlayerUpdates();
-    updateDiamondCounter();
+    initMultiplayer();
 
     window.addEventListener('resize', onWindowResize);
-    document.addEventListener('click', onClickMine, false);
+    document.addEventListener('click', game.interactions.onClickMine.bind(game.interactions), false);
     document.addEventListener('keydown', onKeyDown);
 
     console.log("Starting animation loop...");
@@ -98,7 +111,6 @@ function initGame() {
 
 function animate() {
     requestAnimationFrame(animate);
-
     const deltaTime = game.clock.getDelta();
 
     if (game.controls) {
@@ -108,6 +120,10 @@ function animate() {
     if (game.interactions) {
         game.interactions.update();
     }
+
+    updateInputDurations(deltaTime);
+    updatePlayerPosition();
+    updateRemotePlayers(deltaTime);
 
     if (!game.onGround) {
         game.velocity.y += game.gravity * deltaTime;
@@ -123,6 +139,20 @@ function animate() {
         game.onGround = false;
     }
 
+    // Ensure character and lastCharacterPosition exist before comparing
+    if (game.character && game.lastCharacterPosition) {
+        const characterMoved = game.character.position.distanceToSquared(game.lastCharacterPosition) > 0.0001;
+
+        if (characterMoved) {
+            // Update character's bounding box only when it moves
+            if (!game.character.boundingBox) {
+                game.character.boundingBox = new THREE.Box3();
+            }
+            game.character.boundingBox.setFromObject(game.character);
+            game.lastCharacterPosition.copy(game.character.position);
+        }
+    }
+
     checkCollisions();
 
     if (game.debugMode && Math.random() < 0.01) {
@@ -130,9 +160,7 @@ function animate() {
         checkProximityToDiamondRocks();
     }
 
-    updateSparkParticles(deltaTime);
-    updatePlayerPosition();
-    removeInactivePlayers();
+    window.updateSparkParticles(deltaTime, game);
 
     game.renderer.render(game.scene, game.camera);
 }
@@ -159,90 +187,8 @@ function onKeyDown(event) {
     }
 }
 
-function generateRetroCoinSound() {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.type = 'square';
-    oscillator.frequency.setValueAtTime(987.77, audioContext.currentTime); // B5
-    oscillator.frequency.setValueAtTime(1318.51, audioContext.currentTime + 0.1); // E6
-
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
-    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    return {
-        play: function() {
-            const newOscillator = audioContext.createOscillator();
-            const newGainNode = audioContext.createGain();
-
-            newOscillator.type = 'square';
-            newOscillator.frequency.setValueAtTime(987.77, audioContext.currentTime);
-            newOscillator.frequency.setValueAtTime(1318.51, audioContext.currentTime + 0.1);
-
-            newGainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            newGainNode.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.01);
-            newGainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
-
-            newOscillator.connect(newGainNode);
-            newGainNode.connect(audioContext.destination);
-
-            newOscillator.start(audioContext.currentTime);
-            newOscillator.stop(audioContext.currentTime + 0.2);
-        }
-    };
-}
-
-function updatePlayerPosition() {
-    game.gameData.get('players').get(game.playerId).put({
-        x: game.character.position.x,
-        y: game.character.position.y,
-        z: game.character.position.z,
-        timestamp: Date.now()
-    });
-}
-
-function listenToPlayerUpdates() {
-    game.gameData.get('players').map().on((data, playerId) => {
-        if (playerId !== game.playerId && data) {
-            if (!game.players[playerId]) {
-                // Create a new character for the player
-                game.players[playerId] = createCharacter();
-                game.scene.add(game.players[playerId]);
-            }
-            // Update the player's position
-            game.players[playerId].position.set(data.x, data.y, data.z);
-            game.players[playerId].lastUpdate = Date.now();
-        }
-    });
-}
-
-function removeInactivePlayers() {
-    const now = Date.now();
-    Object.keys(game.players).forEach(playerId => {
-        if (now - game.players[playerId].lastUpdate > 5000) {
-            game.scene.remove(game.players[playerId]);
-            delete game.players[playerId];
-        }
-    });
-}
-
-function updateDiamondCounter() {
-    game.gameData.get('diamondCount').on((count) => {
-        game.diamondCount = count || 0;
-        const counterElement = document.getElementById('diamondCounter');
-        counterElement.textContent = `x ${game.diamondCount}`;
-        
-        // Add a little animation effect
-        counterElement.style.transform = 'scale(1.2)';
-        setTimeout(() => {
-            counterElement.style.transform = 'scale(1)';
-        }, 200);
-    });
-}
-
-window.addEventListener('load', initGame);
+window.game = game;
+window.initGame = initGame;
+window.animate = animate;
+window.onWindowResize = onWindowResize;
+window.onKeyDown = onKeyDown;

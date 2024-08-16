@@ -77,7 +77,7 @@ function mineDiamondRock(rock) {
     const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedBlock === rock);
     if (collisionIndex > -1) {
         const collisionObject = game.collisionObjects[collisionIndex];
-        game.scene.remove(collisionObject);
+        game.scene.remove(collisionObject);  // Remove collision object from scene
         game.collisionObjects.splice(collisionIndex, 1);
         console.log(`Removed collision object. New length: ${game.collisionObjects.length}`);
     }
@@ -87,12 +87,6 @@ function mineDiamondRock(rock) {
         rock.parent.remove(rock);
     }
     console.log("Rock removed from scene");
-
-    // Update shared block data
-    const x = Math.round(rock.position.x);
-    const y = Math.round(rock.position.y);
-    const z = Math.round(rock.position.z);
-    game.blocksData.get(`${x},${y},${z}`).put({exists: false});
 
     // Dispose of geometries and materials
     rock.traverse((child) => {
@@ -120,9 +114,6 @@ function mineDiamondRock(rock) {
     }
     console.log("Rock mined and removed from scene!");
 }
-
-// Attach mineDiamondRock to the game object
-game.mineDiamondRock = mineDiamondRock;
 
 function animatePickaxe(callback) {
     if (game.isPickaxeAnimating) return;
@@ -159,4 +150,3 @@ function animatePickaxe(callback) {
 // Expose necessary functions to the global scope
 window.initInteractions = initInteractions;
 window.onClickMine = onClickMine;
-window.mineDiamondRock = mineDiamondRock;

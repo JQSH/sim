@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSim Cartoon Mine Explorer - Materials</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    // main.js content
+    window.game = {
+        scene: null,
+        camera: null,
+        renderer: null,
+        mine: null,
+        character: null,
+        controls: null,
+        raycaster: null,
+        mouse: null,
+        interactions: null,
+        pickaxe: null,
+        isPickaxeAnimating: false,
+        collisionObjects: [],
+        diamondRocks: [],
+        gravity: -9.8,
+        velocity: new THREE.Vector3(),
+        onGround: false,
+        debugMode: false
+    };
+
+    function initGame() {
+        console.log("Initializing game...");
+
+        game.collisionObjects = [];
+        game.diamondRocks = [];
+
+        game.scene = new THREE.Scene();
+        game.scene.background = new THREE.Color(0x87CEEB);
+
+        game.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        game.camera.position.set(0, 10, 10);
+
+        game.renderer = new THREE.WebGLRenderer();
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(game.renderer.domElement);
+
+        console.log("Creating mine...");
+        game.mine = createMine();
+        game.scene.add(game.mine);
+
+        console.log("Creating character...");
+        game.character = createCharacter();
+        game.scene.add(game.character);
+
+        console.log("Creating pickaxe...");
+        game.pickaxe = createPickaxe();
+        game.character.add(game.pickaxe);
+
+        game.pickaxe.position.set(1.60, 0.80, -0.60);
+        game.pickaxe.rotation.set(-10.69, 0.00, 0.11);
+        game.pickaxe.scale.set(1.5, 1.5, 1.5);
+
+        console.log("Pickaxe created and added to character:", game.pickaxe instanceof THREE.Group);
+
+        console.log("Initializing controls...");
+        game.controls = initControls(game);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        game.scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(1, 1, 1);
+        game.scene.add(directionalLight);
+
+        game.raycaster = new THREE.Raycaster();
+        game.mouse = new THREE.Vector2();
+
+        console.log("Initializing interactions...");
+        game.interactions = initInteractions(game);
+
+        window.addEventListener('resize', onWindowResize);
+        document.addEventListener('click', onClickMine, false);
+        document.addEventListener('keydown', onKeyDown);
+
+        console.log("Starting animation loop...");
+        animate();
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = 1 / 60;
+
+        if (game.controls) {
+            game.controls.update();
+        }
+
+        if (game.interactions) {
+            game.interactions.update();
+        }
+
+        if (!game.onGround) {
+            game.velocity.y += game.gravity * deltaTime;
+        }
+
+        game.character.position.y += game.velocity.y * deltaTime;
+
+        if (game.character.position.y < 2) {
+            game.character.position.y = 2;
+            game.velocity.y = 0;
+            game.onGround = true;
+        } else {
+            game.onGround = false;
+        }
+
+        checkCollisions();
+
+        if (game.debugMode && Math.random() < 0.01) {
+            debugLog(`Character position: ${game.character.position.toArray().map(v => v.toFixed(2))}`);
+            checkProximityToDiamondRocks();
+        }
+
+        game.renderer.render(game.scene, game.camera);
+    }
+
+    function onWindowResize() {
+        game.camera.aspect = window.innerWidth / window.innerHeight;
+        game.camera.updateProjectionMatrix();
+        game.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // interactions.js content
+    function initInteractions(game) {
+        const interactions = {
+            update: function() {
+                // Update logic for interactions (if needed)
+            }
+        };
+
+        return interactions;
+    }
+
+    function onClickMine() {
+        const nearbyRock = checkProximityToDiamondRocks();
+        if (nearbyRock) {
+            console.log("Mining nearby rock:", nearbyRock);
+            if (!game.isPickaxeAnimating) {
+                animatePickaxe(() => {
+                    mineRock(nearbyRock);
+                });
+            } else {
+                console.log("Pickaxe is already animating, but rock is nearby");
+            }
+        } else {
+            console.log("No nearby rock to mine");
+            if (!game.isPickaxeAnimating) {
+                animatePickaxe();
+            }
+        }
+    }
+
+    function mineRock(rock) {
+        console.log("Mining rock:", rock);
+        
+        // Remove the rock group from the scene
+        if (rock.parent) {
+            rock.parent.remove(rock);
+        }
+        
+        // Remove from diamondRocks array
+        const index = game.diamondRocks.indexOf(rock);
+        if (index > -1) {
+            game.diamondRocks.splice(index, 1);
+            console.log("Removed rock from diamondRocks. New length:", game.diamondRocks.length);
+        }
+
+        // Find and remove the associated collision object
+        const collisionIndex = game.collisionObjects.findIndex(obj => obj.userData.associatedRock === rock);
+        if (collisionIndex > -1) {
+            const collisionObject = game.collisionObjects[collisionIndex];
+            if (collisionObject.parent) {
+                collisionObject.parent.remove(collisionObject);
+            }
+            game.collisionObjects.splice(collisionIndex, 1);
+            console.log("Removed collision object. New length:", game.collisionObjects.length);
+        } else {
+            console.warn("Could not find associated collision object for rock:", rock);
+        }
+
+        // Dispose of geometries and materials
+        rock.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            }
+        });
+
+        // Force a scene update
+        game.scene.updateMatrixWorld(true);
+
+        console.log("Rock mined and removed from scene!");
+    }
+
+    function onKeyDown(event) {
+        if (event.key === 'd' || event.key === 'D') {
+            game.debugMode = !game.debugMode;
+            console.log(`Debug mode ${game.debugMode ? 'enabled' : 'disabled'}`);
+        }
+        if (event.key === 'p' || event.key === 'P') {
+            console.log("Forced proximity check:");
+            const nearbyRock = checkProximityToDiamondRocks();
+            if (nearbyRock) {
+                console.log("Nearby rock detected:", nearbyRock);
+            } else {
+                console.log("No nearby rocks detected");
+            }
+        }
+    }
+
+    // Placeholder functions (you'll need to define these or include them from other files)
+    function createMine() { /* ... */ }
+    function createCharacter() { /* ... */ }
+    function createPickaxe() { /* ... */ }
+    function initControls() { /* ... */ }
+    function animatePickaxe() { /* ... */ }
+    function checkCollisions() { /* ... */ }
+    function checkProximityToDiamondRocks() { /* ... */ }
+    function debugLog() { /* ... */ }
+
+    window.addEventListener('load', initGame);
+    </script>    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/mine.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/character.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/pickaxe.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/utils.js"></script>
+    <script src="https://jqsh.github.io/sim/mine/controls.js"></script>
+</body>
+</html>
