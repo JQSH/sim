@@ -1,0 +1,1290 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Attention Game</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.8/browser/pixi.min.js"></script>
+    <script src="pixi-tween.js"></script>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: #c2baab; /* Match PIXI background color */
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* Allow the canvas to scale */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+    // Define Base Resolution
+    const baseWidth = 800;
+    const baseHeight = 600;
+
+    PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+    const loader = PIXI.Loader.shared;
+    loader
+    .add('empty-cup', 'empty-cup.svg')
+    .add('tea', 'tea.svg')
+    .add('espresso', 'espresso.svg')
+    .add('latte', 'latte.svg')
+    .add('macha', 'macha.svg')
+    .add('mini-tea', 'mini-tea.svg')
+    .add('mini-espresso', 'mini-espresso.svg')
+    .add('mini-latte', 'mini-latte.svg')
+    .add('mini-macha', 'mini-macha.svg')
+    .add('left-coffee-machine', 'left-coffee-machine.svg')
+    .add('middle-coffee-machine', 'middle-coffee-machine.svg')
+    .add('right-coffee-machine', 'right-coffee-machine.svg')
+    .add('fill', 'fill.svg')
+    .add('filling', 'filling.svg')
+    .add('progress', 'progress.svg')
+    .add('done', 'done.svg')
+    .add('trash', 'trash.svg')
+    .add('orders-left-bg', 'orders-left-bg.svg')
+    .add('orders-middle', 'orders-middle-bg.svg')
+    .add('orders-right-bg', 'orders-right-bg.svg')
+    .add('orders', 'orders.svg')
+    .add('trash-mug', 'trash-mug.svg');
+
+    loader.load((loader, resources) => {
+        startGame(resources);
+    });
+
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        switch (type) {
+            case 'coffeeComplete':
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+                break;
+            case 'failedCoffee':
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(220, audioContext.currentTime); // A3
+                oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.2); // A2
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+                break;
+            case 'newOrder':
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+                oscillator.frequency.exponentialRampToValueAtTime(587.33, audioContext.currentTime + 0.1); // D5
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+                break;
+            case 'click':
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.05);
+                break;
+        }
+    }
+
+    function startGame(resources) {
+        const app = new PIXI.Application({
+            width: baseWidth,
+            height: baseHeight,
+            backgroundColor: 0xc2baab,
+            resolution: window.devicePixelRatio || 1,
+            autoDensity: true,
+            antialias: false,
+            view: document.getElementById('gameCanvas')
+        });
+
+        // Initialize PIXI tween manager
+        PIXI.tweenManager = new PIXI.tween.TweenManager();
+        
+        // Add ticker to update tweens
+        app.ticker.add((delta) => {
+            PIXI.tweenManager.update(delta);
+        });
+
+        // Create Main Container
+        const mainContainer = new PIXI.Container();
+        app.stage.addChild(mainContainer);
+
+        // Main Containers
+        const uiContainer = new PIXI.Container();
+        const gameContainer = new PIXI.Container();
+        const ordersContainer = new PIXI.Container();
+        mainContainer.addChild(uiContainer, gameContainer, ordersContainer);
+
+        // Initialize Containers
+        uiContainer.position.set(0, 0);
+        gameContainer.position.set(0, 0);
+        ordersContainer.position.set(0, 0);
+
+        // After initializing main containers
+        const alwaysVisibleUI = new PIXI.Container();
+        mainContainer.addChild(alwaysVisibleUI);
+
+        // Transition cooldown
+        let isTransitioning = false;
+        let lastTransitionTime = 0;
+        const transitionDuration = 500; // milliseconds, matching our slide duration
+        const transitionCooldown = 500; // milliseconds
+                
+        // UI Elements
+        const topUI = new PIXI.Text('', {
+            fontFamily: 'Arial',
+            fontSize: 24, // Increased from 18 to 24
+            fill: 0x4A2C2A,
+            align: 'left'
+        });
+        uiContainer.addChild(topUI);
+
+        // Move the top UI to this container
+        alwaysVisibleUI.addChild(topUI);
+
+        // Orders Icon
+        const iconSize = 60;
+        const ordersIcon = new PIXI.Graphics();
+        ordersIcon.beginFill(0x4A2C2A);
+        ordersIcon.drawRoundedRect(0, 0, iconSize, iconSize, 5);
+        ordersIcon.endFill();
+        ordersIcon.interactive = true;
+        ordersIcon.buttonMode = true;
+        gameContainer.addChild(ordersIcon);
+
+        const ordersText = new PIXI.Text('📋', {
+            fontFamily: 'Arial',
+            fontSize: 30,
+            fill: 0xFFFFFF
+        });
+        ordersText.anchor.set(0.5);
+        ordersText.position.set(iconSize / 2, iconSize / 2);
+        ordersIcon.addChild(ordersText);
+
+        ordersIcon.on('pointerdown', toggleOrdersView);
+
+        // Ingredient Container (Drink Selection)
+        const ingredientContainer = new PIXI.Container();
+        gameContainer.addChild(ingredientContainer);
+
+        const drinkTypes = ['macha', 'tea', 'latte', 'espresso'];
+            const buttonWidth = 70;
+            const buttonHeight = 70;
+            const buttonSpacing = 10;
+
+            drinkTypes.forEach((drink, index) => {
+                const button = new PIXI.Container();
+                const xPos = index * (buttonWidth + buttonSpacing);
+                const yPos = 0;
+
+                button.position.set(xPos, yPos);
+
+                const background = new PIXI.Graphics();
+                background.beginFill(0x8B4513);
+                background.drawRoundedRect(0, 0, buttonWidth, buttonHeight, 5);
+                background.endFill();
+                button.addChild(background);
+
+                const drinkSprite = PIXI.Sprite.from(resources[drink].texture);
+                drinkSprite.scale.set(1);
+                drinkSprite.width = buttonWidth - 10;
+                drinkSprite.height = buttonHeight - 10;
+                drinkSprite.position.set(5, 5);
+                button.addChild(drinkSprite);
+
+                button.interactive = true;
+                button.buttonMode = true;
+                button.position.set(xPos, 0);
+
+                button.on('pointerdown', () => {
+                addDrinkToTopAvailablePosition(drink);
+            });
+
+                ingredientContainer.addChild(button);
+            });
+
+        // Cup Placement Area
+        const cupPlacementArea = createCupPlacementArea(4); // Adjust scale as needed
+        const cupPlacementContainer = cupPlacementArea.container;
+        gameContainer.addChild(cupPlacementContainer);
+
+        // Orders Container Setup
+        ordersContainer.visible = false;
+        ordersContainer.removeChildren(); // Clear any existing children
+        const ordersBackground = new PIXI.Graphics();
+        ordersBackground.beginFill(0xc2baab); // Ensure this matches the coffee page background color
+        ordersBackground.drawRect(0, 0, baseWidth, baseHeight);
+        ordersBackground.endFill();
+        ordersContainer.addChild(ordersBackground);
+
+        const ordersTopUI = new PIXI.Text('', {
+            fontFamily: topUI.style.fontFamily,
+            fontSize: 24,
+            fill: topUI.style.fill
+        });
+        ordersContainer.addChild(ordersTopUI);
+
+        // Orders Title Hidden
+        /* const ordersTitle = new PIXI.Text('Current Orders', {
+            fontFamily: 'Arial',
+            fontSize: 24,
+            fill: 0x4A2C2A
+        });
+        ordersTitle.position.set(50, 50);
+        ordersContainer.addChild(ordersTitle);*/
+
+        alwaysVisibleUI.addChild(ordersIcon);
+
+        // Back Icon for Orders View
+        const backIcon = new PIXI.Container();
+        backIcon.visible = false; // Initially hidden
+
+        const backIconGraphic = new PIXI.Graphics();
+        backIconGraphic.beginFill(0x4A2C2A);
+        backIconGraphic.drawRoundedRect(0, 0, iconSize, iconSize, 5);
+        backIconGraphic.endFill();
+        backIcon.addChild(backIconGraphic);
+
+        const backText = new PIXI.Text('☕', {
+            fontFamily: 'Arial',
+            fontSize: 30,
+            fill: 0xFFFFFF
+        });
+        backText.anchor.set(0.5);
+        backText.position.set(iconSize / 2, iconSize / 2);
+        backIcon.addChild(backText);
+
+        backIcon.interactive = true;
+        backIcon.buttonMode = true;
+        backIcon.on('pointerdown', toggleOrdersView);
+
+        alwaysVisibleUI.addChild(backIcon);
+
+        function addDrinkToTopAvailablePosition(drink) {
+            // Loop through all positions from top-left to bottom-right
+            for (let i = 0; i < 6; i++) {
+                if (cups[i] === null) {
+                    createCup(i, drink);
+                    console.log(`Added ${drink} to position ${i}`);
+                    return;
+                }
+            }
+            
+            console.log("No empty positions available");
+        }
+
+        // Helper Variables
+        let time = 120; // 2 minutes in seconds
+        let ordersDone = 0;
+        let ordersLeft = 5;
+        let score = 0;
+        let selectedDrink = null;
+        let cups = Array(6).fill(null);
+        let currentOrders = [];
+
+        const availableDrinks = ['Macha', 'Tea', 'Latte', 'Espresso'];
+
+        function setTransitionButtonsInteractive(interactive) {
+            ordersIcon.interactive = interactive;
+            ordersIcon.buttonMode = interactive;
+            backIcon.interactive = interactive;
+            backIcon.buttonMode = interactive;
+        }
+
+        function slideView(container, startX, endX, duration, onComplete) {
+            container.x = startX;
+            container.visible = true;
+            
+            const startTime = Date.now();
+            const animate = () => {
+                const now = Date.now();
+                const elapsed = Math.min(now - startTime, duration);
+                const progress = elapsed / duration;
+                
+                // Simple easing function (easeOutQuad)
+                const easeProgress = 1 - (1 - progress) * (1 - progress);
+                
+                container.x = startX + (endX - startX) * easeProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    container.x = endX; // Ensure final position is exact
+                    if (onComplete) onComplete();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        }
+
+        function createOrderGrid() {
+            const gridContainer = new PIXI.Container();
+            gridContainer.name = 'orderGrid';  // Add this line
+            const baseBgWidth = 12;
+            const baseBgHeight = 16;
+            const scale = 6;
+            const iconSize = baseBgWidth * scale;
+            const padding = 6.7 * scale;
+            const leftSidePadding = 6.5 * scale;
+            const rightSidePadding = 3 * scale; 
+            const cols = 3;
+            const rows = 3;
+            const bottomPadding = 10 * scale;
+            const topPadding = 15 * scale;
+
+            const leftBgWidth = resources['orders-left-bg'].texture.width * scale;
+            const rightBgWidth = resources['orders-right-bg'].texture.width * scale;
+            const ordersWidth = cols * iconSize + (cols - 1) * padding + leftSidePadding + rightSidePadding;
+            const totalWidth = leftBgWidth + ordersWidth + rightBgWidth;
+
+            const rowHeight = (baseBgHeight * scale);
+            const gridHeight = rowHeight * rows;
+            const totalHeight = topPadding + gridHeight + bottomPadding;
+
+            // Create "Orders:" text
+            const ordersText = new PIXI.Text('Orders:', {
+                fontFamily: 'Arial',
+                fontSize: 24 * scale / 6,
+                fill: 0x4A2C2A,
+                align: 'left'
+            });
+            ordersText.position.set(leftBgWidth + leftSidePadding, 0);
+            gridContainer.addChild(ordersText);
+
+            const rowsContainer = new PIXI.Container();
+            rowsContainer.position.set(0, topPadding);
+
+            // Left background (extended to cover bottom padding)
+            const leftBg = new PIXI.TilingSprite(
+                resources['orders-left-bg'].texture,
+                leftBgWidth / scale,
+                (gridHeight + bottomPadding) / scale
+            );
+            leftBg.scale.set(scale);
+            rowsContainer.addChild(leftBg);
+
+            // Middle backgrounds
+            for (let row = 0; row < rows; row++) {
+                const middleBg = row === 0 
+                    ? new PIXI.TilingSprite(
+                        resources['orders-middle'].texture,
+                        ordersWidth / scale,
+                        resources['orders-middle'].texture.height
+                    )
+                    : new PIXI.Graphics();
+                
+                if (row === 0) {
+                    middleBg.scale.set(scale);
+                } else {
+                    middleBg.beginFill(0x988C7C);
+                    middleBg.drawRect(0, 0, ordersWidth, rowHeight);
+                    middleBg.endFill();
+                }
+                
+                middleBg.position.set(leftBgWidth, row * rowHeight);
+                rowsContainer.addChild(middleBg);
+            }
+
+            // Add an extra background for the bottom padding
+            const bottomPaddingBg = new PIXI.Graphics();
+            bottomPaddingBg.beginFill(0x988C7C);
+            bottomPaddingBg.drawRect(0, 0, ordersWidth, bottomPadding);
+            bottomPaddingBg.endFill();
+            bottomPaddingBg.position.set(leftBgWidth, gridHeight);
+            rowsContainer.addChild(bottomPaddingBg);
+
+            // Right background (extended to cover bottom padding)
+            const rightBg = new PIXI.TilingSprite(
+                resources['orders-right-bg'].texture,
+                rightBgWidth / scale,
+                (gridHeight + bottomPadding) / scale
+            );
+            rightBg.scale.set(scale);
+            rightBg.position.set(leftBgWidth + ordersWidth, 0);
+            rowsContainer.addChild(rightBg);
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const index = row * cols + col;
+                    if (index < currentOrders.length) {
+                        const order = currentOrders[index];
+                        const orderContainer = new PIXI.Container();
+                        const xPos = col * (iconSize + padding) + leftSidePadding;
+                        const yPos = row * rowHeight;
+                        
+                        orderContainer.position.set(leftBgWidth + xPos, yPos);
+
+                        // Add orders.svg background
+                        const orderBg = PIXI.Sprite.from(resources['orders'].texture);
+                        orderBg.width = iconSize;
+                        orderBg.height = baseBgHeight * scale;
+                        orderContainer.addChild(orderBg);
+
+                        // Add mini drink sprite
+                        const miniItemName = `mini-${order.type.toLowerCase()}`;
+                        if (resources[miniItemName]) {
+                            const miniDrinkSprite = PIXI.Sprite.from(resources[miniItemName].texture);
+                            
+                            const maxMiniWidth = iconSize * 0.6;
+                            const maxMiniHeight = orderBg.height * 0.6;
+                            const miniScaleX = maxMiniWidth / miniDrinkSprite.texture.width;
+                            const miniScaleY = maxMiniHeight / miniDrinkSprite.texture.height;
+                            const miniScale = Math.min(miniScaleX, miniScaleY);
+                            miniDrinkSprite.scale.set(miniScale);
+
+                            miniDrinkSprite.position.set(
+                                (iconSize - miniDrinkSprite.width) / 2,
+                                (orderBg.height - miniDrinkSprite.height) / 1.4
+                            );
+
+                            orderContainer.addChild(miniDrinkSprite);
+                        }
+
+                        // Add remaining time text
+                        const remainingTime = Math.max(0, Math.ceil((order.expiryTime - Date.now()) / 1000));
+                        const timeText = new PIXI.Text(`${remainingTime}s`, {
+                            fontFamily: 'Arial',
+                            fontSize: 12 * scale / 6,
+                            fill: remainingTime < 10 ? 0xFF0000 : 0x000000,
+                            align: 'center'
+                        });
+                        timeText.anchor.set(0.5, 0);
+                        timeText.position.set(iconSize / 2, baseBgHeight * scale - 14 * scale / 6);
+                        orderContainer.addChild(timeText);
+
+                        // Store reference to timeText in the order object
+                        order.timeText = timeText;
+
+                        rowsContainer.addChild(orderContainer);
+                    }
+                }
+            }
+
+            gridContainer.addChild(rowsContainer);
+            return gridContainer;
+        }
+
+        // Helper Functions
+
+        function updateOrdersView() {
+            console.log("Updating orders view");
+            console.log("Current orders:", currentOrders.map(order => ({ type: order.type, expiryTime: order.expiryTime })));
+
+            // Remove all children except the background
+            while (ordersContainer.children.length > 1) {
+                ordersContainer.removeChildAt(1);
+            }
+
+            // Create and add the new order grid
+            const orderGrid = createOrderGrid();
+
+            // Position the grid relative to ordersContainer
+            orderGrid.position.set(
+                (baseWidth - orderGrid.width) / 2,
+                50  // Adjust this value as needed
+            );
+            ordersContainer.addChild(orderGrid);
+
+            // Update the score display
+            updateScoreDisplay();
+        }
+
+        function toggleOrdersView() {
+            if (isTransitioning) {
+                return; // Ignore any interaction during transition
+            }
+
+            isTransitioning = true;
+            setTransitionButtonsInteractive(false);
+
+            const slideDistance = baseWidth;
+
+            if (ordersContainer.visible) {
+                // Slide orders view out to the right
+                slideView(ordersContainer, 0, slideDistance, transitionDuration, () => {
+                    ordersContainer.visible = false;
+                });
+                
+                // Slide game view in from the left
+                gameContainer.x = -slideDistance;
+                gameContainer.visible = true;
+                slideView(gameContainer, -slideDistance, 0, transitionDuration, completeTransition);
+                
+                backIcon.visible = false;
+                ordersIcon.visible = true;
+            } else {
+                updateOrdersViewContent(); // Update content before showing
+                
+                // Slide game view out to the left
+                slideView(gameContainer, 0, -slideDistance, transitionDuration, () => {
+                    gameContainer.visible = false;
+                });
+                
+                // Slide orders view in from the right
+                ordersContainer.x = slideDistance;
+                ordersContainer.visible = true;
+                slideView(ordersContainer, slideDistance, 0, transitionDuration, completeTransition);
+                
+                backIcon.visible = true;
+                ordersIcon.visible = false;
+            }
+
+            // Ensure icons are positioned correctly after the transition
+            repositionElements();
+        }
+
+        function completeTransition() {
+            isTransitioning = false;
+            setTransitionButtonsInteractive(true);
+        }
+        
+        function updateOrdersViewContent() {
+            // Clear all children except the background
+            while (ordersContainer.children.length > 1) {
+                ordersContainer.removeChildAt(1);
+            }
+
+            // Create and add the new order grid
+            const orderGrid = createOrderGrid();
+            
+            // Position the grid relative to ordersContainer
+            orderGrid.position.set(
+                (baseWidth - orderGrid.width) / 2,
+                50  // Adjust this value as needed
+            );
+            ordersContainer.addChild(orderGrid);
+
+            // Update the score display
+            updateScoreDisplay();
+        }
+
+        function createFillButtons(cupPlacementContainer, scale) {
+            const fillButtonContainer = new PIXI.Container();
+            fillButtonContainer.name = 'fillButtonContainer';
+            cupPlacementContainer.addChild(fillButtonContainer);
+
+            // Define necessary textures and dimensions
+            const leftMachineTexture = resources['left-coffee-machine'].texture;
+            const middleMachineTexture = resources['middle-coffee-machine'].texture;
+            const machineHeight = middleMachineTexture.height;
+            const cupWidth = resources['empty-cup'].texture.width;
+            const cupSpacing = 10; // Horizontal spacing between cup zones
+            const sidePadding = 5; // Padding from the machine
+            const rowSpacing = machineHeight + 20; // Vertical spacing between rows
+            const buttonHeight = 14; // Height of the Fill button
+            const buttonSpacing = 2; // Spacing between buttons
+
+            for (let row = 0; row < 2; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const index = row * 3 + col;
+                    const button = new PIXI.Container();
+                    
+                    // Calculate positions based on machine and cup layout
+                    const xPosition = col * (cupWidth + cupSpacing) + leftMachineTexture.width + sidePadding;
+                    const yPosition = row * rowSpacing - (buttonHeight + buttonSpacing);
+                    
+                    button.position.set(xPosition, yPosition);
+                    
+                    const fillSprite = new PIXI.Sprite(resources['filling'].texture);
+                    fillSprite.width = 14;
+                    fillSprite.height = buttonHeight;
+                    button.addChild(fillSprite);
+
+                    // Store the sprite directly on the button for easy access
+                    button.stateSprite = fillSprite;
+
+                    button.interactive = true;
+                    button.buttonMode = true;
+
+                    button.on('pointerdown', function() {
+                        const buttonIndex = fillButtonContainer.children.indexOf(this);
+                        if (cups[buttonIndex] && !cups[buttonIndex].filling) {
+                            fillCup(buttonIndex);
+                        }
+                    });
+
+                    fillButtonContainer.addChild(button);
+                }
+            }
+
+            return fillButtonContainer;
+        }
+
+        function updateFillButtonSprite(button, spriteName) {
+            if (button && button.stateSprite) {
+                console.log(`Updating button sprite to: ${spriteName}`);
+                button.stateSprite.texture = resources[spriteName].texture;
+            } else {
+                console.warn(`Failed to update button sprite to: ${spriteName}`);
+            }
+        }
+
+
+        function createCupPlacementArea(scale = 1) {
+            const cupPlacementContainer = new PIXI.Container();
+            cupPlacementContainer.scale.set(scale);
+            gameContainer.addChild(cupPlacementContainer);
+
+            // Get the width of an empty cup
+            const emptyCupTexture = resources['empty-cup'].texture;
+            const cupWidth = emptyCupTexture.width;
+
+            // Get the height of the middle machine
+            const middleMachineTexture = resources['middle-coffee-machine'].texture;
+            const machineHeight = middleMachineTexture.height;
+
+            // Define spacing
+            const rowSpacing = 20; // Vertical spacing between rows
+            const cupSpacing = 10; // Horizontal spacing between cup zones
+            const sidePadding = 5; // Padding on the left and right sides
+
+            // Calculate total width including spacing and padding
+            const totalWidth = (cupWidth * 3) + (cupSpacing * 2) + (sidePadding * 2);
+
+            // Create two rows
+            for (let row = 0; row < 2; row++) {
+                // Calculate vertical position with spacing
+                const yPosition = row * (machineHeight + rowSpacing);
+
+                // Left side of the coffee machine
+                const leftMachine = PIXI.Sprite.from(resources['left-coffee-machine'].texture);
+                leftMachine.position.set(0, yPosition);
+                cupPlacementContainer.addChild(leftMachine);
+
+                // Middle (repeating) part of the coffee machine
+                const middleMachine = new PIXI.TilingSprite(
+                    middleMachineTexture,
+                    totalWidth,
+                    machineHeight
+                );
+                middleMachine.position.set(leftMachine.width, yPosition);
+                cupPlacementContainer.addChild(middleMachine);
+
+                // Right side of the coffee machine
+                const rightMachine = PIXI.Sprite.from(resources['right-coffee-machine'].texture);
+                rightMachine.position.set(leftMachine.width + totalWidth, yPosition);
+                cupPlacementContainer.addChild(rightMachine);
+
+                // Cup placement areas
+                for (let col = 0; col < 3; col++) {
+                    const index = row * 3 + col;
+                    const area = new PIXI.Container();
+                    area.position.set(
+                        col * (cupWidth + cupSpacing) + leftMachine.width + sidePadding,
+                        yPosition
+                    );
+
+                    const areaOutline = new PIXI.Graphics();
+                    areaOutline.lineStyle(0.01, 0xFFFFFF, 0.01); // Semi-transparent white outline
+                    areaOutline.drawRect(0, 0, cupWidth, machineHeight);
+                    area.addChild(areaOutline);
+
+                    // Add fill.svg image
+                    if (resources['fill']) {
+                        const fillSprite = new PIXI.Sprite(resources['fill'].texture);
+                        fillSprite.scale.set(1);
+                        fillSprite.anchor.set(0.5, 0);
+                        fillSprite.position.set(cupWidth / 2, 1);
+                        area.addChild(fillSprite);
+                    } else {
+                        console.warn("'fill' resource not found. Make sure to load 'fill.svg'.");
+                    }
+                    
+                    // Create a hit area that accounts for scaling
+                    const hitArea = new PIXI.Rectangle(0, 0, cupWidth, machineHeight);
+                    area.hitArea = hitArea;
+                    area.interactive = true;
+                    area.buttonMode = true;
+
+                    area.on('pointerdown', () => {
+                        console.log("Cup area clicked, index:", index);
+                        console.log("selectedDrink:", selectedDrink);
+                        if (selectedDrink) {
+                            createCup(index);
+                        } else {
+                            console.log("No drink selected");
+                        }
+                    });
+
+                    cupPlacementContainer.addChild(area);
+                }
+            }
+
+            createFillButtons(cupPlacementContainer, scale);
+
+            return {
+                container: cupPlacementContainer,
+                width: totalWidth * scale,
+                height: (middleMachineTexture.height * 2 + rowSpacing) * scale
+            };
+        }
+
+
+        function createCup(index, drinkType) {
+            if (cups[index]) return;
+
+            const cup = new PIXI.Container();
+            
+            // Load the empty cup SVG as the base
+            const emptyCup = PIXI.Sprite.from(resources['empty-cup'].texture);
+            cup.addChild(emptyCup);
+            
+            // Create a container for the filled part
+            const filledContainer = new PIXI.Container();
+            cup.addChild(filledContainer);
+
+            // Create the filled part sprite
+            const filledPart = PIXI.Sprite.from(resources[drinkType.toLowerCase()].texture);
+            filledContainer.addChild(filledPart);
+
+            // Create a clip area for the filled part
+            const clipArea = new PIXI.Graphics();
+            filledContainer.addChild(clipArea);
+            filledContainer.mask = clipArea;
+
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const machinePartsPerRow = 3; // left, middle, right
+            const cupsPerRow = 3;
+            const totalPartsPerRow = machinePartsPerRow + cupsPerRow;
+            const areaIndex = (row * totalPartsPerRow) + machinePartsPerRow + col;
+            const area = cupPlacementContainer.children[areaIndex];
+            const scale = cupPlacementContainer.scale.x; // Assuming x and y scale are the same
+
+            const middleMachineTexture = resources['middle-coffee-machine'].texture;
+            const machineHeight = middleMachineTexture.height;
+
+            cup.position.set(
+                Math.round(area.x + (resources['empty-cup'].texture.width - resources['empty-cup'].texture.width) / 2 + 1),
+                Math.round(area.y + machineHeight - resources['empty-cup'].texture.height - (machineHeight * 0.10))
+            );
+
+            cup.fillLevel = 0;
+            cup.drink = drinkType;
+            cup.filling = false;
+            cup.spoiled = false;
+            cup.filledContainer = filledContainer;
+            cup.clipArea = clipArea;
+            cups[index] = cup;
+            cupPlacementContainer.addChild(cup);
+            cup.interactive = true;
+            cup.buttonMode = true;
+            cup.on('pointerdown', () => deleteCup(index));
+            
+            // Update the fill button for this cup
+            const fillButton = getFillButton(index);
+            updateFillButtonSprite(fillButton, 'filling');
+            fillButton.interactive = true;
+            fillButton.buttonMode = true;
+            fillButton.off('pointerdown');
+            fillButton.on('pointerdown', () => {
+                fillCup(index);
+            });
+        }
+
+        function deleteCup(index) {
+            const cup = cups[index];
+            if (cup && !cup.filling) {
+                console.log(`Deleting cup at index ${index}`);
+                cupPlacementContainer.removeChild(cup);
+                cups[index] = null;
+
+                // Reset the fill button
+                const fillButton = getFillButton(index);
+                updateFillButtonSprite(fillButton, 'filling');
+                fillButton.interactive = true;
+                fillButton.off('pointerdown');
+                fillButton.on('pointerdown', () => fillCup(index));
+
+                // Update the game state
+                updateScoreDisplay();
+                updateOrdersView();
+            }
+        }
+
+        // Helper function to update fill button text
+        function updateFillButtonText(button, text) {
+            if (button && button.children[0] instanceof PIXI.Text) {
+                button.children[0].text = text;
+            }
+        }
+
+        function fillCup(index) {
+            const cup = cups[index];
+            if (cup && cup.fillLevel < 1.25 && !cup.filling) {
+                cup.filling = true;
+                cup.interactive = false;
+                cup.buttonMode = false;
+                const fillButton = getFillButton(index);
+                updateFillButtonSprite(fillButton, 'progress');
+
+                cup.fillInterval = setInterval(() => {
+                    if (!cups[index]) {
+                        // Cup has been removed, clear interval and reset button
+                        clearInterval(cup.fillInterval);
+                        updateFillButtonSprite(fillButton, 'filling');
+                        fillButton.interactive = true;a
+                        fillButton.buttonMode = true;
+                        fillButton.off('pointerdown');
+                        fillButton.on('pointerdown', () => fillCup(index));
+                        return;
+                    }
+
+                    if (cup.fillLevel < 1.25) {
+                        cup.fillLevel += 0.01;
+                        updateCupFill(cup);
+
+                        if (cup.fillLevel >= 1 && cup.fillLevel < 1.25) {
+                            updateFillButtonSprite(fillButton, 'done');
+                            fillButton.off('pointerdown');
+                            fillButton.on('pointerdown', () => collectCup(index));
+                        }
+                    } else {
+                        clearInterval(cup.fillInterval);
+                        cup.filling = false;
+                        cup.spoiled = true;
+                        updateFillButtonSprite(fillButton, 'trash');
+                        fillButton.off('pointerdown');
+                        fillButton.on('pointerdown', () => trashCup(index));
+
+                        // Replace the cup contents with trash-mug.svg
+                        replaceCupContentsWithTrashMug(cup);
+
+                        score = Math.max(0, score - 5);
+                        updateScoreDisplay();
+                    }
+                }, 100);
+            }
+        }
+
+        function replaceCupContentsWithTrashMug(cup) {
+            // Remove only the filled part of the cup
+            cup.removeChild(cup.filledContainer);
+
+            // Create and add the trash mug sprite
+            const trashMug = PIXI.Sprite.from(resources['trash-mug'].texture);
+            trashMug.width = cup.width;
+            trashMug.height = cup.height;
+            
+            // Create a new container for the trash mug
+            const trashContainer = new PIXI.Container();
+            trashContainer.addChild(trashMug);
+            
+            // Add the trash container to the cup, maintaining the original empty cup sprite
+            cup.addChildAt(trashContainer, 1);  // Add it just above the empty cup sprite
+
+            // Remove the mask as it's no longer needed
+            cup.mask = null;
+
+            // Update references
+            cup.filledContainer = trashContainer;
+        }
+
+        function getFillButton(index) {
+            const fillButtonContainer = cupPlacementContainer.getChildByName('fillButtonContainer');
+            if (!fillButtonContainer) {
+                console.error("Fill Button Container not found!");
+                return null;
+            }
+            return fillButtonContainer.children[index];
+        }
+
+        function updateCupFill(cup) {
+            const clipArea = cup.clipArea;
+            const totalHeight = cup.height;
+            const visibleStartPercentage = 0.37;
+            const visibleStartHeight = Math.round(totalHeight * visibleStartPercentage);
+            
+            let fillHeight = Math.round((totalHeight - visibleStartHeight) * cup.fillLevel);
+            fillHeight = Math.max(0, Math.min(fillHeight, totalHeight - visibleStartHeight));
+            
+            const visibleFillHeight = visibleStartHeight + fillHeight;
+            
+            clipArea.clear();
+            clipArea.beginFill(0xFFFFFF);
+            clipArea.drawRect(0, totalHeight - visibleFillHeight, cup.width, visibleFillHeight);
+            clipArea.endFill();
+        }
+
+        function collectCup(index) {
+            const cup = cups[index];
+            if (cup && cup.fillLevel >= 1 && !cup.spoiled) {
+                // Clear any ongoing filling interval
+                if (cup.fillInterval) {
+                    clearInterval(cup.fillInterval);
+                    cup.fillInterval = null;
+                }
+                
+                console.log("Collecting cup:", cup.drink);
+                console.log("Current orders:", currentOrders.map(order => order.type));
+                
+                const matchedOrderIndex = currentOrders.findIndex(order => order.type.toLowerCase() === cup.drink.toLowerCase());
+
+                if (matchedOrderIndex !== -1 && cup.fillLevel <= 1.1) {
+                    playSound('coffeeComplete');
+                    console.log("Matched order found at index:", matchedOrderIndex);
+                    
+                    // Remove the matched order
+                    const completedOrder = currentOrders.splice(matchedOrderIndex, 1)[0];
+                    console.log("Completed order:", completedOrder.type);
+                    
+                    // Increment ordersDone
+                    ordersDone++;
+                    
+                    // Add score
+                    score += 10;
+
+                    console.log("Order completed successfully. Orders done:", ordersDone, "Score:", score);
+                } else {
+                    console.log("No matching order found or cup overfilled. Cup drink:", cup.drink, "Fill level:", cup.fillLevel);
+                    // Penalty for incorrect or overfilled order
+                    score = Math.max(0, score - 5);
+                    console.log("Penalty applied. New score:", score);
+                }
+
+                // Remove the cup
+                cupPlacementContainer.removeChild(cup);
+                cups[index] = null;
+
+                // Reset the fill button
+                const fillButton = getFillButton(index);
+                updateFillButtonSprite(fillButton, 'filling');
+                fillButton.interactive = true;
+                fillButton.buttonMode = true;
+                fillButton.off('pointerdown');
+                fillButton.on('pointerdown', () => fillCup(index));
+
+                // Update the orders view and score display immediately
+                updateOrdersView();
+                updateScoreDisplay();
+            } else {
+                console.log("Cannot collect cup. Cup state:", cup ? `Fill level: ${cup.fillLevel}, Spoiled: ${cup.spoiled}` : "No cup");
+            }
+        }
+
+        function trashCup(index) {
+            const cup = cups[index];
+            if (cup && cup.spoiled) {
+                cupPlacementContainer.removeChild(cup);
+                cups[index] = null;
+
+                const fillButton = getFillButton(index);
+                updateFillButtonSprite(fillButton, 'filling');
+                fillButton.interactive = true;
+                fillButton.off('pointerdown');
+                fillButton.on('pointerdown', () => fillCup(index));
+            }
+        }
+
+        function generateOrder() {
+            return {
+                type: availableDrinks[Math.floor(Math.random() * availableDrinks.length)],
+                expiryTime: Date.now() + 25000, // 25 seconds from now
+                timeText: null // Placeholder for the PIXI.Text object
+            };
+        }
+
+
+        function generateOrders(count) {
+            playSound('newOrder');
+            return Array(count).fill().map(() => generateOrder());
+        }
+
+        function addNewOrderIfPossible() {
+            const availableSlots = 9 - currentOrders.length;
+            if (availableSlots > 0) {
+                const newOrders = generateBatchOrders();
+                currentOrders.push(...newOrders);
+                playSound('newOrder');
+                console.log(`New batch of ${newOrders.length} orders added:`, newOrders.map(order => ({ type: order.type, expiryTime: order.expiryTime })));
+                updateOrdersView();
+                updateScoreDisplay();
+            }
+        }
+
+        function generateBatchOrders() {
+            const batchSize = Math.random() < 0.5 ? 2 : 3; // 50% chance for 2 or 3 orders
+            const availableSlots = 9 - currentOrders.length;
+            const ordersToGenerate = Math.min(batchSize, availableSlots);
+            
+            return Array(ordersToGenerate).fill().map(() => generateOrder());
+        }
+
+        function scheduleNextOrder() {
+            const delay = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000; // 5-10 seconds in milliseconds
+            setTimeout(() => {
+                addNewOrderIfPossible();
+                scheduleNextOrder(); // Schedule the next batch of orders
+            }, delay);
+        }
+
+        function checkExpiredOrders() {
+            const now = Date.now();
+            const expiredOrders = currentOrders.filter(order => now > order.expiryTime);
+            
+            expiredOrders.forEach(order => {
+                const index = currentOrders.indexOf(order);
+                if (index !== -1) {
+                    currentOrders.splice(index, 1);
+                    score = Math.max(0, score - 5);
+                    playSound('failedCoffee');
+                }
+            });
+
+            if (expiredOrders.length > 0) {
+                updateOrdersView();
+                updateScoreDisplay();
+            }
+        }
+
+        function updateScoreDisplay() {
+            const minutes = Math.floor(time / 60);
+            const seconds = time % 60;
+            const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            const displayText = `Time: ${timeString} | Orders: ${ordersDone}/${ordersLeft} | Score: ${score}`;
+            topUI.text = displayText;
+            topUI.anchor.set(0.5, 0);
+            topUI.position.set(baseWidth / 2, 20);
+        }
+
+        function repositionElements() {
+            const paddingTop = 20;
+            const spacing = 0;
+
+            let currentY = paddingTop;
+
+            // Position top UI for both views
+            topUI.position.set(baseWidth / 2, currentY);
+            topUI.anchor.set(0.5, 0);
+            currentY += topUI.height + spacing;
+
+            if (gameContainer.visible) {
+                // Position cup placement container (coffee view)
+                cupPlacementContainer.position.set(
+                    (baseWidth - cupPlacementContainer.width) / 2,
+                    currentY + 120
+                );
+
+                // Position ingredient container (coffee view)
+                ingredientContainer.position.set(
+                    cupPlacementContainer.x,
+                    cupPlacementContainer.y + cupPlacementContainer.height - 20
+                );
+
+                // Reposition fill buttons (coffee view)
+                repositionFillButtons();
+            } else if (ordersContainer.visible) {
+                // Update orders view layout
+                updateOrdersView();
+            }
+
+            // Position orders/back icon in the same place for both views
+            const iconPosition = {
+                x: ingredientContainer.x + ingredientContainer.width + 20,
+                y: ingredientContainer.y + (ingredientContainer.height - ordersIcon.height) / 2
+            };
+            ordersIcon.position.copyFrom(iconPosition);
+            backIcon.position.copyFrom(iconPosition);
+        }
+
+        function repositionFillButtons() {
+            const fillButtonContainer = cupPlacementContainer.getChildByName('fillButtonContainer');
+            if (!fillButtonContainer) return;
+
+            // Define necessary textures and dimensions
+            const leftMachineTexture = resources['left-coffee-machine'].texture;
+            const middleMachineTexture = resources['middle-coffee-machine'].texture;
+            const machineHeight = middleMachineTexture.height;
+            const cupWidth = resources['empty-cup'].texture.width;
+            const cupSpacing = 10; // Horizontal spacing between cup zones
+            const sidePadding = 5; // Padding from the machine
+            const rowSpacing = machineHeight + 25; // Vertical spacing between rows
+            const buttonHeight = 20; // Height of the Fill button
+            const buttonSpacing = 2; // Spacing between buttons
+
+            fillButtonContainer.children.forEach((button, index) => {
+                const row = Math.floor(index / 3);
+                const col = index % 3;
+
+                const xPosition = col * (cupWidth + cupSpacing) + leftMachineTexture.width + sidePadding;
+                const yPosition = row * rowSpacing - (buttonHeight + buttonSpacing);
+
+                button.position.set(xPosition + 2, yPosition);
+            });
+        }
+
+        
+        function endGame() {
+            updateScoreDisplay();
+            
+            gameContainer.interactiveChildren = false;
+            ordersContainer.interactiveChildren = false;
+            
+            const gameOverText = new PIXI.Text('Game Over!', {
+                fontFamily: 'Arial',
+                fontSize: 48,
+                fill: 0xFF0000,
+                align: 'center'
+            });
+            gameOverText.anchor.set(0.5);
+            gameOverText.position.set(baseWidth / 2, baseHeight / 2);
+            app.stage.addChild(gameOverText);
+            
+            const finalScoreText = new PIXI.Text(`Final Score: ${score}`, {
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0x000000,
+                align: 'center'
+            });
+            finalScoreText.anchor.set(0.5);
+            finalScoreText.position.set(baseWidth / 2, baseHeight / 2 + 60);
+            app.stage.addChild(finalScoreText);
+            
+            const restartButton = new PIXI.Text('Restart', {
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0x0000FF,
+                align: 'center'
+            });
+            restartButton.anchor.set(0.5);
+            restartButton.position.set(baseWidth / 2, baseHeight / 2 + 120);
+            restartButton.interactive = true;
+            restartButton.buttonMode = true;
+            restartButton.on('pointerdown', () => {
+                location.reload();
+            });
+            app.stage.addChild(restartButton);
+        }
+
+        // Initialize the game
+        currentOrders = generateBatchOrders();
+        while (currentOrders.length < 3) {
+            currentOrders.push(...generateBatchOrders());
+        }
+        currentOrders = currentOrders.slice(0, 3); // Ensure we start with exactly 4 orders
+        updateScoreDisplay();
+        repositionElements();
+
+        // Start scheduling new orders
+        scheduleNextOrder();
+
+        // Listen for window resize events
+        window.addEventListener('resize', () => {
+            resize();
+            repositionElements();
+        });
+
+        function updateOrderTimers() {
+            currentOrders.forEach(order => {
+                if (order.timeText) {
+                    const remainingTime = Math.max(0, Math.ceil((order.expiryTime - Date.now()) / 1000));
+                    order.timeText.text = `${remainingTime}s`;
+
+                    // Change color if less than 10 seconds remain
+                    if (remainingTime < 10) {
+                        order.timeText.style.fill = 0xFF0000; // Red
+                    } else {
+                        order.timeText.style.fill = 0x000000; // Black
+                    }
+                }
+            });
+        }
+
+        function resize() {
+            // Resize the renderer
+            app.renderer.resize(window.innerWidth, window.innerHeight);
+
+            // Calculate scale to fit the screen while maintaining aspect ratio
+            let scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
+            
+            // Set a higher minimum scale to prevent elements from becoming too small
+            const minScale = 0.82;
+            if (scale < minScale) {
+                scale = minScale;
+            }
+
+            // Apply the scaling to the main container
+            mainContainer.scale.set(scale);
+
+            // Center the mainContainer horizontally and align to the top
+            mainContainer.position.set(
+                (window.innerWidth - baseWidth * scale) / 2,
+                0 // Align to the top
+            );
+
+            // Reposition elements after resizing
+            repositionElements();
+        }
+
+
+        // Initial resize
+        resize();
+
+        // Listen for window resize events
+        window.addEventListener('resize', resize);
+
+        let accumulatedTime = 0;
+
+        app.ticker.add((delta) => {
+            accumulatedTime += delta;
+            
+            if (accumulatedTime >= 60) {
+                time = Math.max(0, time - 1);
+                accumulatedTime -= 60;
+                updateScoreDisplay();
+                checkExpiredOrders(); // Add this line
+                
+                if (time <= 0) {
+                    app.ticker.stop();
+                    endGame();
+                }
+            }
+        });
+
+        // New ticker for updating order timers
+        let orderUpdateAccumulatedTime = 0;
+        const ORDER_UPDATE_INTERVAL = 60; // Assuming 60 FPS, this is approximately 1 second
+        let orderAddAccumulatedTime = 0;
+        let ORDER_ADD_INTERVAL = 300; // Start with 5 seconds (assuming 60 FPS)
+
+        app.ticker.add((delta) => {
+            orderUpdateAccumulatedTime += delta;
+
+            if (orderUpdateAccumulatedTime >= ORDER_UPDATE_INTERVAL) {
+                orderUpdateAccumulatedTime -= ORDER_UPDATE_INTERVAL;
+                updateOrderTimers();
+                checkExpiredOrders();
+
+                if (time <= 0) {
+                    app.ticker.stop();
+                    endGame();
+                }
+            }
+        });
+    }
+    </script>
+</body>
+</html>

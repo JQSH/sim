@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "pixi-tween": "^0.2.0"
+  }
+}
