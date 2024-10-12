@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coffee Attention Game</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.8/browser/pixi.min.js"></script>
+    <script src="https://download.playfab.com/PlayFabClientApi.js"></script>
     <script src="pixi-tween.js"></script>
     
     <style>
@@ -22,15 +23,27 @@
             height: 100%;
             /* Allow the canvas to scale */
         }
+        /* New styles for game over screen elements */
+        .game-over-input {
+            position: absolute;
+            font-size: 24px;
+            padding: 5px;
+            width: 200px;
+            display: none; /* Hidden by default */
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Added HTML input for player name -->
+    <input type="text" id="nameInput" class="game-over-input" placeholder="Enter your name">
+
     <script>
     // Define Base Resolution
     const baseWidth = 800;
     const baseHeight = 600;
+    PlayFab.settings.titleId = "75F4D";
 
     PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
     const loader = PIXI.Loader.shared;
@@ -444,7 +457,7 @@
                         orderContainer.addChild(orderBg);
 
                         // Add mini drink sprite
-                        const miniItemName = `mini-${order.type.toLowerCase()}`;
+                        const miniItemName = `${order.type.toLowerCase()}`;
                         if (resources[miniItemName]) {
                             const miniDrinkSprite = PIXI.Sprite.from(resources[miniItemName].texture);
                             
@@ -800,9 +813,7 @@
             fillButton.interactive = true;
             fillButton.buttonMode = true;
             fillButton.off('pointerdown');
-            fillButton.on('pointerdown', () => {
-                fillCup(index);
-            });
+            fillButton.on('pointerdown', () => fillCup(index));
         }
 
         function deleteCup(index) {
@@ -816,6 +827,7 @@
                 const fillButton = getFillButton(index);
                 updateFillButtonSprite(fillButton, 'filling');
                 fillButton.interactive = true;
+                fillButton.buttonMode = true;
                 fillButton.off('pointerdown');
                 fillButton.on('pointerdown', () => fillCup(index));
 
@@ -843,10 +855,9 @@
 
                 cup.fillInterval = setInterval(() => {
                     if (!cups[index]) {
-                        // Cup has been removed, clear interval and reset button
                         clearInterval(cup.fillInterval);
                         updateFillButtonSprite(fillButton, 'filling');
-                        fillButton.interactive = true;a
+                        fillButton.interactive = true;
                         fillButton.buttonMode = true;
                         fillButton.off('pointerdown');
                         fillButton.on('pointerdown', () => fillCup(index));
@@ -857,7 +868,7 @@
                         cup.fillLevel += 0.01;
                         updateCupFill(cup);
 
-                        if (cup.fillLevel >= 1 && cup.fillLevel < 1.25) {
+                        if (cup.fillLevel >= 1) {
                             updateFillButtonSprite(fillButton, 'done');
                             fillButton.off('pointerdown');
                             fillButton.on('pointerdown', () => collectCup(index));
@@ -865,16 +876,12 @@
                     } else {
                         clearInterval(cup.fillInterval);
                         cup.filling = false;
-                        cup.spoiled = true;
                         updateFillButtonSprite(fillButton, 'trash');
                         fillButton.off('pointerdown');
                         fillButton.on('pointerdown', () => trashCup(index));
-
-                        // Replace the cup contents with trash-mug.svg
+                        
+                        // Replace the cup contents with trash-mug
                         replaceCupContentsWithTrashMug(cup);
-
-                        score = Math.max(0, score - 5);
-                        updateScoreDisplay();
                     }
                 }, 100);
             }
@@ -882,7 +889,9 @@
 
         function replaceCupContentsWithTrashMug(cup) {
             // Remove only the filled part of the cup
-            cup.removeChild(cup.filledContainer);
+            if (cup.filledContainer) {
+                cup.removeChild(cup.filledContainer);
+            }
 
             // Create and add the trash mug sprite
             const trashMug = PIXI.Sprite.from(resources['trash-mug'].texture);
@@ -929,9 +938,32 @@
             clipArea.endFill();
         }
 
+        const orderProcessingQueue = [];
+
+        function processOrderQueue() {
+            while (orderProcessingQueue.length > 0) {
+                const { action, params } = orderProcessingQueue.shift();
+                switch (action) {
+                    case 'collect':
+                        collectCupImpl(...params);
+                        break;
+                    case 'expire':
+                        expireOrderImpl(...params);
+                        break;
+                }
+            }
+            updateOrdersView();
+            updateScoreDisplay();
+        }
+
         function collectCup(index) {
+            orderProcessingQueue.push({ action: 'collect', params: [index] });
+            processOrderQueue();
+        }
+
+        function collectCupImpl(index) {
             const cup = cups[index];
-            if (cup && cup.fillLevel >= 1 && !cup.spoiled) {
+            if (cup && cup.fillLevel >= 1 && cup.fillLevel < 1.25) {
                 // Clear any ongoing filling interval
                 if (cup.fillInterval) {
                     clearInterval(cup.fillInterval);
@@ -939,11 +971,10 @@
                 }
                 
                 console.log("Collecting cup:", cup.drink);
-                console.log("Current orders:", currentOrders.map(order => order.type));
                 
                 const matchedOrderIndex = currentOrders.findIndex(order => order.type.toLowerCase() === cup.drink.toLowerCase());
 
-                if (matchedOrderIndex !== -1 && cup.fillLevel <= 1.1) {
+                if (matchedOrderIndex !== -1) {
                     playSound('coffeeComplete');
                     console.log("Matched order found at index:", matchedOrderIndex);
                     
@@ -959,8 +990,8 @@
 
                     console.log("Order completed successfully. Orders done:", ordersDone, "Score:", score);
                 } else {
-                    console.log("No matching order found or cup overfilled. Cup drink:", cup.drink, "Fill level:", cup.fillLevel);
-                    // Penalty for incorrect or overfilled order
+                    console.log("No matching order found. Cup drink:", cup.drink);
+                    // Penalty for incorrect order
                     score = Math.max(0, score - 5);
                     console.log("Penalty applied. New score:", score);
                 }
@@ -976,18 +1007,14 @@
                 fillButton.buttonMode = true;
                 fillButton.off('pointerdown');
                 fillButton.on('pointerdown', () => fillCup(index));
-
-                // Update the orders view and score display immediately
-                updateOrdersView();
-                updateScoreDisplay();
             } else {
-                console.log("Cannot collect cup. Cup state:", cup ? `Fill level: ${cup.fillLevel}, Spoiled: ${cup.spoiled}` : "No cup");
+                console.log("Cannot collect cup. Cup state:", cup ? `Fill level: ${cup.fillLevel}` : "No cup");
             }
         }
 
         function trashCup(index) {
             const cup = cups[index];
-            if (cup && cup.spoiled) {
+            if (cup && cup.fillLevel >= 1.25) {
                 cupPlacementContainer.removeChild(cup);
                 cups[index] = null;
 
@@ -996,6 +1023,10 @@
                 fillButton.interactive = true;
                 fillButton.off('pointerdown');
                 fillButton.on('pointerdown', () => fillCup(index));
+
+                // Apply penalty for trashing an overfilled cup
+                score = Math.max(0, score - 5);
+                console.log("Cup trashed. Penalty applied. New score:", score);
             }
         }
 
@@ -1043,20 +1074,21 @@
 
         function checkExpiredOrders() {
             const now = Date.now();
-            const expiredOrders = currentOrders.filter(order => now > order.expiryTime);
-            
-            expiredOrders.forEach(order => {
-                const index = currentOrders.indexOf(order);
-                if (index !== -1) {
-                    currentOrders.splice(index, 1);
-                    score = Math.max(0, score - 5);
-                    playSound('failedCoffee');
+            currentOrders.forEach((order, index) => {
+                if (now > order.expiryTime) {
+                    orderProcessingQueue.push({ action: 'expire', params: [index] });
                 }
             });
+            processOrderQueue();
+        }
 
-            if (expiredOrders.length > 0) {
-                updateOrdersView();
-                updateScoreDisplay();
+        function expireOrderImpl(index) {
+            if (index >= 0 && index < currentOrders.length) {
+                const order = currentOrders[index];
+                currentOrders.splice(index, 1);
+                score = Math.max(0, score - 5);
+                playSound('failedCoffee');
+                console.log(`Order expired: ${order.type}`);
             }
         }
 
@@ -1136,47 +1168,368 @@
             });
         }
 
-        
+        function createGameOverScreen() {
+            const gameOverContainer = new PIXI.Container();
+            gameOverContainer.name = 'gameOverContainer';
+
+            const overlay = new PIXI.Graphics();
+            overlay.beginFill(0x6B3E3B, 0.7);
+            overlay.drawRect(0, 0, window.innerWidth, window.innerHeight);
+            overlay.endFill();
+            gameOverContainer.addChild(overlay);
+
+            gameOverContainer.overlay = overlay;
+
+            const contentContainer = new PIXI.Container();
+            gameOverContainer.addChild(contentContainer);
+
+            // Align contentContainer to start from the top with padding
+            const paddingTop = 50;
+            contentContainer.position.set(window.innerWidth / 2, paddingTop);
+            contentContainer.anchor = new PIXI.Point(0.5, 0); // Center horizontally
+
+            const gameOverText = new PIXI.Text('Game Over!', {
+                fontFamily: 'Arial',
+                fontSize: 48,
+                fontWeight: 'bold',
+                fill: 0xFFFFFF,
+                align: 'center',
+                dropShadow: true,
+                dropShadowColor: '#000000',
+                dropShadowBlur: 4,
+                dropShadowAngle: Math.PI / 6,
+                dropShadowDistance: 6,
+            });
+            gameOverText.anchor.set(0.5, 0);
+            gameOverText.position.set(0, 0);
+            contentContainer.addChild(gameOverText);
+
+            const finalScoreText = new PIXI.Text(`Final Score: ${score}`, {
+                fontFamily: 'Arial',
+                fontSize: 32,
+                fill: 0xFFFFFF,
+                align: 'center'
+            });
+            finalScoreText.anchor.set(0.5, 0);
+            finalScoreText.position.set(0, gameOverText.height + 20);
+            contentContainer.addChild(finalScoreText);
+
+            // Submit Score Button
+            const submitButton = new PIXI.Container();
+            const submitButtonBackground = new PIXI.Graphics();
+            submitButtonBackground.beginFill(0x4A2C2A);
+            submitButtonBackground.drawRoundedRect(-100, -25, 200, 50, 10); // Centered
+            submitButtonBackground.endFill();
+            submitButton.addChild(submitButtonBackground);
+
+            const submitButtonText = new PIXI.Text('Submit Score', {
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0xFFFFFF,
+                align: 'center'
+            });
+            submitButtonText.anchor.set(0.5);
+            submitButtonText.position.set(0, 0);
+            submitButton.addChild(submitButtonText);
+
+            submitButton.interactive = true;
+            submitButton.buttonMode = true;
+            contentContainer.addChild(submitButton);
+
+            // Position submitButton below finalScoreText
+            submitButton.position.set(0, finalScoreText.y + finalScoreText.height + 100);
+
+            // Leaderboard Container
+            const leaderboardContainer = new PIXI.Container();
+            leaderboardContainer.name = 'leaderboardContainer';
+            contentContainer.addChild(leaderboardContainer);
+
+            // Position leaderboard below submitButton
+            leaderboardContainer.position.set(0, submitButton.y + submitButton.height + 200);
+
+            // Restart button
+            const restartButton = new PIXI.Container();
+            const buttonBackground = new PIXI.Graphics();
+            buttonBackground.beginFill(0x4A2C2A);
+            buttonBackground.drawRoundedRect(-100, -25, 200, 50, 10); // Centered
+            buttonBackground.endFill();
+            restartButton.addChild(buttonBackground);
+
+            const restartText = new PIXI.Text('Restart', {
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0xFFFFFF,
+                align: 'center'
+            });
+            restartText.anchor.set(0.5);
+            restartText.position.set(0, 0);
+            restartButton.addChild(restartText);
+
+            restartButton.interactive = true;
+            restartButton.buttonMode = true;
+            restartButton.on('pointerdown', () => {
+                location.reload();
+            });
+            restartButton.on('pointerover', () => {
+                buttonBackground.tint = 0x6B3E3B;
+            });
+            restartButton.on('pointerout', () => {
+                buttonBackground.tint = 0xFFFFFF;
+            });
+
+            // Position restartButton below leaderboard
+            restartButton.position.set(0, leaderboardContainer.y + leaderboardContainer.height + 30);
+            contentContainer.addChild(restartButton);
+
+            // Handle Submit Button Click
+            submitButton.on('pointerdown', () => {
+                const playerName = document.getElementById('nameInput').value.trim();
+                if (playerName) {
+                    submitScoreToPlayFab(playerName, score);
+                } else {
+                    alert('Please enter your name before submitting your score.');
+                }
+            });
+
+            // Position the nameInput HTML element correctly
+            const nameInput = document.getElementById('nameInput');
+            nameInput.style.display = 'block'; // Make it visible
+            nameInput.style.left = `${window.innerWidth / 2 - 100}px`; // Center horizontally
+            nameInput.style.top = `${paddingTop + gameOverText.height + 70}px`; // Position below gameOverText
+            // Update position on resize
+            window.addEventListener('resize', () => {
+                nameInput.style.left = `${window.innerWidth / 2 - 100}px`;
+                nameInput.style.top = `${paddingTop + gameOverText.height + 70}px`;
+            });
+
+            // Load the leaderboard initially without delay
+            loginAsGuest(() => loadLeaderboardFromPlayFab(leaderboardContainer));
+
+            // Return the gameOverContainer to be added to the stage
+            return gameOverContainer;
+        }
+
+        function loginAsGuest(callback) {
+            const loginRequest = {
+                TitleId: PlayFab.settings.titleId,
+                CustomId: "GuestPlayer_" + Date.now(), // Use a timestamp to create a unique ID
+                CreateAccount: true
+            };
+
+            PlayFabClientSDK.LoginWithCustomID(loginRequest, function (result, error) {
+                if (error) {
+                    console.error("PlayFab guest login error:", error);
+                    alert("Failed to connect to leaderboard. Please try again.");
+                } else {
+                    console.log("Logged in as guest successfully");
+                    if (callback) callback();
+                }
+            });
+        }
+
+        function isValidPlayFabName(name) {
+            // PlayFab display names must be between 3 and 25 characters
+            return name && name.length >= 3 && name.length <= 25;
+        }
+
+        function submitScoreToPlayFab(playerName, score) {
+            if (!isValidPlayFabName(playerName)) {
+                alert("Player name must be between 3 and 25 characters.");
+                return;
+            }
+
+            const loginRequest = {
+                TitleId: PlayFab.settings.titleId,
+                CustomId: playerName,
+                CreateAccount: true
+            };
+
+            PlayFabClientSDK.LoginWithCustomID(loginRequest, (loginResult, loginError) => {
+                if (loginError) {
+                    console.error("PlayFab login error:", loginError);
+                    alert("Failed to submit score. Please try again.");
+                    return;
+                }
+
+                // Update the player's display name
+                PlayFabClientSDK.UpdateUserTitleDisplayName({
+                    DisplayName: playerName
+                }, (updateNameResult, updateNameError) => {
+                    if (updateNameError) {
+                        console.error("Failed to update display name:", updateNameError);
+                    } else {
+                        console.log("Display name updated successfully");
+                    }
+
+                    // Continue with submitting the score
+                    const submitRequest = {
+                            Statistics: [{
+                                StatisticName: "HighScore",
+                                Value: score
+                            }]
+                        };
+
+                        PlayFabClientSDK.UpdatePlayerStatistics(submitRequest, (updateResult, updateError) => {
+                            if (updateError) {
+                                console.error("PlayFab update statistics error:", updateError);
+                                alert("Failed to submit score. Please try again.");
+                            } else {
+                            console.log("Score submitted successfully");
+                            const leaderboardContainer = app.stage.getChildByName('gameOverContainer').getChildAt(1).getChildByName('leaderboardContainer');
+                            
+                            // Reload the leaderboard from PlayFab to ensure it includes the new score
+                            loadLeaderboardFromPlayFab(leaderboardContainer);
+                        }
+                    });
+                });
+            });
+        }
+
+        function displayLeaderboard(container, leaderboardData) {
+            console.log("Displaying leaderboard with data:", leaderboardData);
+            container.removeChildren();
+            
+            // Add background
+            const background = new PIXI.Graphics();
+            background.beginFill(0x00FF00, 0.3);
+            background.drawRect(-150, -200, 300, 400); // Centered
+            background.endFill();
+            container.addChild(background);
+
+            // Add title
+            const leaderboardTitle = new PIXI.Text('Leaderboard', {
+                fontFamily: 'Arial',
+                fontSize: 28,
+                fill: 0xFFFFFF,
+                align: 'center'
+            });
+            leaderboardTitle.anchor.set(0.5, 0);
+            leaderboardTitle.position.set(0, -180);
+            container.addChild(leaderboardTitle);
+
+            // Add entries
+            leaderboardData.forEach((entry, index) => {
+                const entryText = new PIXI.Text(`${index + 1}. ${entry.DisplayName}: ${entry.StatValue}`, {
+                    fontFamily: 'Arial',
+                    fontSize: 20,
+                    fill: 0xFFFFFF,
+                    align: 'left'
+                });
+                entryText.anchor.set(0.5, 0);
+                entryText.position.set(0, -150 + 30 * index);
+                container.addChild(entryText);
+            });
+
+            // Force a redraw
+            if (app && app.renderer) {
+                app.renderer.render(app.stage);
+            }
+        }
+
+        function loadLeaderboardFromPlayFab(container, callback) {
+            console.log("Starting to load leaderboard...");
+            const leaderboardRequest = {
+                StatisticName: "HighScore",
+                StartPosition: 0,
+                MaxResultsCount: 10
+            };
+
+            PlayFabClientSDK.GetLeaderboard(leaderboardRequest, (result, error) => {
+                if (error) {
+                    console.error("PlayFab leaderboard error:", error);
+                    container.removeChildren();
+                    
+                    const errorTitle = new PIXI.Text('Leaderboard Error', {
+                        fontFamily: 'Arial',
+                        fontSize: 28,
+                        fill: 0xFF0000,
+                        align: 'center'
+                    });
+                    errorTitle.anchor.set(0.5, 0);
+                    errorTitle.position.set(0, 0);
+                    container.addChild(errorTitle);
+
+                    const errorText = new PIXI.Text('Failed to load leaderboard. Please try again later.', {
+                        fontFamily: 'Arial',
+                        fontSize: 20,
+                        fill: 0xFF0000,
+                        align: 'center',
+                        wordWrap: true,
+                        wordWrapWidth: 300
+                    });
+                    errorText.anchor.set(0.5, 0);
+                    errorText.position.set(0, errorTitle.height + 20);
+                    container.addChild(errorText);
+                    return;
+                }
+
+                console.log("Leaderboard data received:", result.data);
+                
+                if (callback) {
+                    callback(result.data.Leaderboard || []);
+                } else {
+                    displayLeaderboard(container, result.data.Leaderboard || []);
+                }
+            });
+        }
+
+        function executePlayFabRequest(request, maxRetries = 3, delay = 1000) {
+            return new Promise((resolve, reject) => {
+                const attemptRequest = (retryCount) => {
+                    request((result, error) => {
+                        if (error) {
+                            if (error.errorCode === 429 && retryCount < maxRetries) {
+                                console.log(`Rate limited. Retrying in ${delay / 1000} seconds...`);
+                                setTimeout(() => attemptRequest(retryCount + 1), delay);
+                            } else {
+                                reject(error);
+                            }
+                        } else {
+                            resolve(result);
+                        }
+                    });
+                };
+                attemptRequest(0);
+            });
+        }
+
         function endGame() {
             updateScoreDisplay();
             
             gameContainer.interactiveChildren = false;
             ordersContainer.interactiveChildren = false;
             
-            const gameOverText = new PIXI.Text('Game Over!', {
-                fontFamily: 'Arial',
-                fontSize: 48,
-                fill: 0xFF0000,
-                align: 'center'
+            const gameOverScreen = createGameOverScreen();
+            app.stage.addChild(gameOverScreen);
+
+            function positionGameOverElements() {
+                // No longer needed as positioning is handled within createGameOverScreen
+            }
+
+            positionGameOverElements();
+
+            // Update the resize function
+            const originalResize = resize;
+            resize = function() {
+                originalResize();
+                if (gameOverScreen && gameOverScreen.parent) {
+                    // Reposition nameInput as well
+                    const nameInput = document.getElementById('nameInput');
+                    nameInput.style.left = `${window.innerWidth / 2 - 100}px`;
+                    nameInput.style.top = `${50 + 48 + 70}px`; // paddingTop + gameOverText.height + spacing
+                }
+            };
+
+            resize();
+
+            // Remove event listeners to prevent multiple bindings
+            window.removeEventListener('resize', resize);
+
+            // Listen for window resize events
+            window.addEventListener('resize', () => {
+                resize();
+                // No need to repositionElements here as it's handled
             });
-            gameOverText.anchor.set(0.5);
-            gameOverText.position.set(baseWidth / 2, baseHeight / 2);
-            app.stage.addChild(gameOverText);
-            
-            const finalScoreText = new PIXI.Text(`Final Score: ${score}`, {
-                fontFamily: 'Arial',
-                fontSize: 24,
-                fill: 0x000000,
-                align: 'center'
-            });
-            finalScoreText.anchor.set(0.5);
-            finalScoreText.position.set(baseWidth / 2, baseHeight / 2 + 60);
-            app.stage.addChild(finalScoreText);
-            
-            const restartButton = new PIXI.Text('Restart', {
-                fontFamily: 'Arial',
-                fontSize: 24,
-                fill: 0x0000FF,
-                align: 'center'
-            });
-            restartButton.anchor.set(0.5);
-            restartButton.position.set(baseWidth / 2, baseHeight / 2 + 120);
-            restartButton.interactive = true;
-            restartButton.buttonMode = true;
-            restartButton.on('pointerdown', () => {
-                location.reload();
-            });
-            app.stage.addChild(restartButton);
         }
 
         // Initialize the game
@@ -1235,6 +1588,17 @@
                 0 // Align to the top
             );
 
+            const gameOverScreen = app.stage.getChildByName('gameOverContainer');
+            if (gameOverScreen) {
+                if (gameOverScreen.overlay) {
+                    gameOverScreen.overlay.width = window.innerWidth;
+                    gameOverScreen.overlay.height = window.innerHeight;
+                }
+                const contentContainer = gameOverScreen.getChildAt(1);
+                contentContainer.position.set(window.innerWidth / 2, 50); // Reset to paddingTop
+                // The nameInput is positioned via CSS, handled separately
+            }
+
             // Reposition elements after resizing
             repositionElements();
         }
@@ -1277,6 +1641,7 @@
                 orderUpdateAccumulatedTime -= ORDER_UPDATE_INTERVAL;
                 updateOrderTimers();
                 checkExpiredOrders();
+                processOrderQueue(); // Add this line
 
                 if (time <= 0) {
                     app.ticker.stop();
@@ -1286,5 +1651,5 @@
         });
     }
     </script>
-</body>
+    </body>
 </html>
