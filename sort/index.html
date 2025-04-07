@@ -35,6 +35,15 @@
             user-select: none;
             touch-action: none; /* Prevents default touch behaviors */
         }
+        .game-item::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            z-index: -1; /* Behind the actual item */
+        }
         /* Style applied when a main item is being dragged */
         .game-item.dragging {
             cursor: grabbing;
@@ -44,11 +53,14 @@
             transform: translate(-50%, -50%) scale(1.1);
         }
         /* Style for main items being removed after a match */
-        .game-item.matched {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.1) rotate(360deg);
-            transition: transform 0.4s ease-in, opacity 0.4s ease-in;
-            z-index: 5;
+        .game-item.dragging {
+            cursor: grabbing;
+            opacity: 0.6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); /* shadow-lg */
+            z-index: 1000;
+            transform: translate(-50%, -50%) scale(1.1);
+            padding: 15px;
+            margin: -15px;
         }
         /* Container for all shelves */
         #shelves-container {
@@ -1398,6 +1410,47 @@
                 itemElement.classList.add('dragging');
             }, 0);
         }
+
+        // find the nearest empty slot to a given position
+        function findNearestEmptySlot(x, y) {
+            // Get all empty slots
+            const emptySlots = [];
+            
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                // Skip shelves that are already full
+                const visibleCount = shelvesState[shelfId].filter(item => item !== null).length;
+                if (visibleCount >= SHELF_CAPACITY) continue;
+                
+                for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                    // Check if slot is empty
+                    if (shelvesState[shelfId][slotId] === null) {
+                        const slotElement = document.getElementById(`slot-${shelfId}-${slotId}`);
+                        if (slotElement) {
+                            const rect = slotElement.getBoundingClientRect();
+                            // Calculate center point of the slot
+                            const centerX = rect.left + rect.width / 2;
+                            const centerY = rect.top + rect.height / 2;
+                            // Calculate distance from drop point to slot center
+                            const distance = Math.sqrt(Math.pow(centerX - x, 2) + Math.pow(centerY - y, 2));
+                            
+                            emptySlots.push({
+                                shelfId,
+                                slotId,
+                                distance
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Sort by distance and return the nearest
+            if (emptySlots.length > 0) {
+                emptySlots.sort((a, b) => a.distance - b.distance);
+                return emptySlots[0];
+            }
+            
+            return null; // No empty slots found
+        }
         
         function handleDragEnd(event) {
             event.stopPropagation(); // Prevent event bubbling
@@ -1473,20 +1526,56 @@
             if (!gameActive || !draggedItemData) return;
             
             const targetSlotElement = event.target.closest('.shelf-slot');
-            if (!targetSlotElement) { return; } // Dropped outside a slot
+            let targetShelfId, targetSlotId, isValidDrop = true;
             
-            targetSlotElement.classList.remove('drag-over', 'drag-over-invalid'); // Clean up UI
-
-            const targetShelfId = parseInt(targetSlotElement.dataset.shelfId);
-            const targetSlotId = parseInt(targetSlotElement.dataset.slotId);
-
-            // --- Final Validation ---
-            let isValidDrop = true;
-            if (targetShelfId === draggedItemData.sourceShelfId && targetSlotId === draggedItemData.sourceSlotId) { isValidDrop = false; }
-            if (shelvesState[targetShelfId]?.[targetSlotId] !== null) { isValidDrop = false; } // Target must be empty
-            const visibleCount = shelvesState[targetShelfId]?.filter(item => item !== null).length ?? SHELF_CAPACITY;
-            if (visibleCount >= SHELF_CAPACITY) { isValidDrop = false; } // Target shelf must have space
-
+            // Clean up UI first
+            document.querySelectorAll('.shelf-slot.drag-over, .shelf-slot.drag-over-invalid').forEach(el => {
+                el.classList.remove('drag-over', 'drag-over-invalid');
+            });
+            
+            if (!targetSlotElement) {
+                // Dropped outside a slot - find nearest valid slot
+                const nearestSlot = findNearestEmptySlot(event.clientX, event.clientY);
+                if (nearestSlot) {
+                    targetShelfId = nearestSlot.shelfId;
+                    targetSlotId = nearestSlot.slotId;
+                } else {
+                    return; // No valid slots found
+                }
+            } else {
+                targetShelfId = parseInt(targetSlotElement.dataset.shelfId);
+                targetSlotId = parseInt(targetSlotElement.dataset.slotId);
+                
+                // --- Validation ---
+                if (targetShelfId === draggedItemData.sourceShelfId && targetSlotId === draggedItemData.sourceSlotId) { 
+                    isValidDrop = false; 
+                }
+                if (shelvesState[targetShelfId]?.[targetSlotId] !== null) { 
+                    isValidDrop = false; 
+                }
+                const visibleCount = shelvesState[targetShelfId]?.filter(item => item !== null).length ?? SHELF_CAPACITY;
+                if (visibleCount >= SHELF_CAPACITY) { 
+                    isValidDrop = false; 
+                }
+                
+                // If invalid, try to find nearest empty slot
+                if (!isValidDrop) {
+                    const nearestSlot = findNearestEmptySlot(event.clientX, event.clientY);
+                    if (nearestSlot) {
+                        // Don't consider the original slot
+                        if (nearestSlot.shelfId === draggedItemData.sourceShelfId && 
+                            nearestSlot.slotId === draggedItemData.sourceSlotId) {
+                            return; // Same as source slot, do nothing
+                        }
+                        targetShelfId = nearestSlot.shelfId;
+                        targetSlotId = nearestSlot.slotId;
+                        isValidDrop = true;
+                    } else {
+                        return; // No valid slots found
+                    }
+                }
+            }
+            
             if (isValidDrop) {
                 const itemToMove = draggedItemData.itemData;
                 const sourceShelfId = draggedItemData.sourceShelfId;
@@ -1510,7 +1599,6 @@
                 
                 checkWinCondition(); // Check if game won
             }
-            // If drop is invalid, dragend handles visual cleanup. State remains unchanged.
         }
 
         // --- Game Lifecycle Functions ---
