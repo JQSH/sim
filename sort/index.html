@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goods Sorting - Shelf Master (Refill)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            background: linear-gradient(135deg, #e0f2fe, #dcfce7); /* light sky to light green */
+            min-height: 100vh;
+            user-select: none; /* Prevent unwanted text selection */
+        }
+        /* Style for the main, draggable game items */
+        .game-item {
+            font-size: 2rem;
+            cursor: grab;
+            width: 55px;
+            height: 55px;
+            background-color: #f8fafc; /* bg-slate-50 */
+            border-radius: 0.375rem; /* rounded-md */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); /* shadow-md */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center element */
+            z-index: 10; /* Above slot and preview */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
+            user-select: none;
+            touch-action: none; /* Prevents default touch behaviors */
+        }
+        /* Style applied when a main item is being dragged */
+        .game-item.dragging {
+            cursor: grabbing;
+            opacity: 0.6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1); /* shadow-lg */
+            z-index: 1000;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        /* Style for main items being removed after a match */
+        .game-item.matched {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.1) rotate(360deg);
+            transition: transform 0.4s ease-in, opacity 0.4s ease-in;
+            z-index: 5;
+        }
+        /* Container for all shelves */
+        #shelves-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3x3 grid */
+            gap: 1rem;
+            padding: 0.5rem;
+            max-width: 750px; /* Limit width */
+            margin: 0 auto; /* Center grid */
+            user-select: none;
+        }
+        /* Styling for individual shelves */
+        .shelf {
+            background-color: #f1f5f9; /* bg-slate-100 */
+            border: 2px solid #cbd5e1; /* bg-slate-300 */
+            border-radius: 0.75rem; /* rounded-xl */
+            padding: 0.5rem;
+            min-height: 80px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow */
+            user-select: none;
+            position: relative; /* For preview container positioning */
+        }
+        /* Cleared shelf styling */
+        .shelf.cleared {
+            background-color: #ecfdf5; /* green-50 */
+            border-color: #86efac; /* green-300 */
+            box-shadow: 0 0 8px #86efac; /* green glow */
+        }
+        /* Preview container above each shelf */
+        .preview-container {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px; /* Space between preview items */
+        }
+        /* Styling for the slots within shelves */
+        .shelf-slot {
+            width: 65px;
+            height: 65px;
+            background-color: #e2e8f0; /* bg-slate-200 */
+            border: 1px dashed #94a3b8; /* bg-slate-400 */
+            border-radius: 0.5rem; /* rounded-lg */
+            position: relative; /* For item positioning */
+            transition: background-color 0.2s ease, border-style 0.2s ease;
+            overflow: visible; /* Allow preview to extend outside */
+            user-select: none;
+        }
+        /* Style when dragging over a valid drop target slot */
+        .shelf-slot.drag-over {
+            background-color: #c7d2fe; /* bg-indigo-200 */
+            border-style: solid;
+        }
+        /* Style when dragging over an invalid drop target slot */
+        .shelf-slot.drag-over-invalid {
+            background-color: #fecaca; /* bg-red-200 */
+            border-style: solid;
+            border-color: #ef4444; /* bg-red-500 */
+        }
+        /* Styling for the message area */
+        #message {
+            min-height: 2rem;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        /* Click feedback for button */
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        /* Preview items above the shelves */
+        .preview-item {
+            font-size: 1.25rem; /* Smaller than game items */
+            width: 28px;
+            height: 28px;
+            background-color: rgba(248, 250, 252, 0.9);
+            border: 1.5px solid #a5b4fc; /* indigo-300 */
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            pointer-events: none; /* Can't be interacted with */
+            user-select: none;
+        }
+        
+        /* Placeholder for when no specific preview is available */
+        .preview-item.empty {
+            background-color: rgba(226, 232, 240, 0.4); /* slate-200 with transparency */
+            border: 1.5px dashed #cbd5e1; /* slate-300 */
+            color: #94a3b8; /* slate-400 */
+            font-size: 0.875rem;
+        }
+        
+        /* Container for preview label and items */
+        .shelf-preview-row {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* Label for next items */
+        .preview-label {
+            font-size: 0.75rem;
+            color: #6366f1; /* indigo-500 */
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        
+        /* "Cleared" badge for empty shelves */
+        .cleared-badge {
+            position: absolute;
+            bottom: -10px;
+            right: -10px;
+            background-color: #10b981; /* green-500 */
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 15;
+        }
+        
+        /* Animation for items appearing on shelf */
+        @keyframes appear {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            70% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        
+        .game-item.new-item {
+            animation: appear 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4">
+
+    <div id="game-container" class="bg-white p-4 sm:p-6 rounded-2xl shadow-xl w-full max-w-4xl text-center">
+
+        <h1 class="text-2xl sm:text-3xl font-bold mb-4 text-slate-700">Goods Sorting - Shelf Master</h1>
+
+        <div class="flex justify-between items-center mb-4 px-2 sm:px-4">
+             <div id="timer" class="text-xl font-semibold text-indigo-600 bg-indigo-100 px-4 py-2 rounded-lg shadow-sm">
+                </div>
+             <div id="reservoir-count" class="text-lg font-medium text-gray-600 bg-gray-100 px-3 py-2 rounded-lg shadow-sm">
+                 Items Left: 0 </div>
+        </div>
+
+        <div id="message" class="mb-4 text-xl h-8"></div>
+        <div id="shelves-container" class="mb-6 pt-8">
+             </div>
+        <button id="restart-button" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hidden">
+            Restart Game
+        </button>
+
+    </div>
+
+    <script>
+        // --- Game Configuration ---
+        const NUM_SHELVES = 9;
+        const SLOTS_PER_SHELF = 3;
+        const SHELF_CAPACITY = 3; // Max items per shelf for dropping logic
+        const INITIAL_TIME = 240; // seconds
+        const MATCH_ANIMATION_DURATION = 400; // ms
+        const PREVIEW_ITEMS_PER_SHELF = 3; // Show 3 preview items for each shelf
+        const REFILL_DELAY = 500; // ms delay before refilling shelf after clearing
+        const MIN_ITEMS_PER_SHELF = 1; // Minimum items per shelf at start
+        const MAX_ITEMS_PER_SHELF = 3; // Maximum items per shelf at start
+        const EMPTY_PREVIEW = ''; // Symbol for empty preview slot
+        const MIN_PREVIEW_ROUNDS = 2; // Minimum preview rounds per shelf
+        const MAX_PREVIEW_ROUNDS = 3; // Maximum preview rounds per shelf
+        const MAX_ITEMS_PER_TYPE = 3; // STRICT: Each item type appears exactly 3 times
+
+        // Define a balanced set of items
+        const ITEM_TYPES = [
+            '🍎', '🍌', '🍓', '🍇', '🍔', '🍕', '🍉', '🍋', '🍊', '🥥', // Food items (10 types)
+            '🐶', '🐱', '🐭', '🦊', '🐻', '🐼', '🦁', '🐯', '🐨', '🐸', // Animal items (10 types)
+            '🎁', '⚽', '🎮', '📱', '🔑', '🎯', '🎨', '🎭', '🚗', '🏠', // Misc items (10 types)
+        ];
+
+        // --- DOM Elements ---
+        const shelvesContainer = document.getElementById('shelves-container');
+        const timerElement = document.getElementById('timer');
+        const messageElement = document.getElementById('message');
+        const restartButton = document.getElementById('restart-button');
+        const reservoirCountElement = document.getElementById('reservoir-count');
+
+        // --- Game State ---
+        let shelvesState = [];
+        let totalItemsRemaining = 0;
+        let shelfPreviews = {};
+        let previewPositions = {};
+        // Global tracking of item types for strict validation
+        let itemTypeCounter = {};
+        let timerInterval = null;
+        let timeLeft = INITIAL_TIME;
+        let gameActive = false;
+        let draggedItemData = null;
+        let uniqueIdCounter = 0;
+        let gameConfig = null;
+
+        // --- Core Functions ---
+
+        /** Shuffles an array in place using the Fisher-Yates algorithm. */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        /** Generates a unique ID for item instances */
+        function generateItemId() {
+            return `item-${uniqueIdCounter++}`;
+        }
+        
+        /** Generate a balanced game configuration with complete sets of 3 */
+        function generateGameConfiguration() {
+            console.log("Generating new game configuration...");
+            
+            // Init global counter for all items
+            itemTypeCounter = {};
+            
+            // Calculate how many complete sets of 3 we need
+            const estimatedItems = 9 * 2 + 9 * 2 * 2; // Initial + Preview items 
+            const requiredCompleteSets = Math.ceil(estimatedItems / 3);
+            
+            // Create a strictly controlled item pool with complete sets
+            const itemPool = createStrictItemPool(requiredCompleteSets);
+            
+            console.log(`Created item pool with ${itemPool.length} items in complete sets`);
+            
+            // Prepare the game configuration
+            const config = {
+                initialBoard: [],
+                previewSequences: {},
+                // For verification
+                itemDistribution: {} 
+            };
+            
+            // Initialize empty preview sequences for each shelf
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                config.previewSequences[shelfId] = [];
+            }
+            
+            // Step 1: Create initial board with guaranteed matches
+            console.log("Creating initial board layout...");
+            createInitialBoardWithMatches(config, itemPool);
+            
+            // Step 2: Create preview sequences with guaranteed matches
+            console.log("Creating preview sequences...");
+            createPreviewSequencesWithCompleteMatches(config, itemPool);
+            
+            // Final verification: ensure ALL items are in complete sets of 3
+            console.log("Verifying game configuration...");
+            const isValid = verifyCompleteItemSets(config);
+            
+            if (!isValid) {
+                console.error("CRITICAL: Game configuration is not valid!");
+                // Try to fix it automatically
+                fixIncompleteItemSets(config);
+            }
+
+            function validateGameItems(config) {
+                let fixedItems = false;
+                
+                // Check the initial board
+                for (let i = 0; i < config.initialBoard.length; i++) {
+                    const [shelfId, slotId, itemType] = config.initialBoard[i];
+                    if (!itemType) {
+                        console.error(`Found undefined item in initial board at [${shelfId},${slotId}]`);
+                        // Replace with a valid emoji from ITEM_TYPES
+                        config.initialBoard[i][2] = ITEM_TYPES[0];
+                        fixedItems = true;
+                    }
+                }
+                
+                // Check all preview sequences
+                for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                    if (!config.previewSequences[shelfId]) {
+                        console.error(`Missing preview sequence for shelf ${shelfId}`);
+                        config.previewSequences[shelfId] = [];
+                        fixedItems = true;
+                        continue;
+                    }
+                    
+                    // Create a new array with only valid items
+                    const validSequence = [];
+                    
+                    for (let i = 0; i < config.previewSequences[shelfId].length; i++) {
+                        const itemType = config.previewSequences[shelfId][i];
+                        if (!itemType) {
+                            console.error(`Found undefined item in preview sequence for shelf ${shelfId}`);
+                            // Add a valid item instead
+                            validSequence.push(ITEM_TYPES[0]);
+                            fixedItems = true;
+                        } else {
+                            validSequence.push(itemType);
+                        }
+                    }
+                    
+                    // Replace the sequence with only valid items
+                    config.previewSequences[shelfId] = validSequence;
+                }
+                
+                return fixedItems; // Return whether we fixed anything
+            }
+
+            validateGameItems(config);
+            
+            return config;
+        }
+
+        /** 
+         * Create a pool of items where each type appears exactly in sets of 3
+         * This ensures all items can be matched and completed
+         */
+        function createStrictItemPool(requiredSets) {
+            const itemPool = [];
+            
+            // Reset global item counter
+            itemTypeCounter = {};
+            
+            // Shuffle the item types for variety
+            const shuffledTypes = shuffleArray([...ITEM_TYPES]);
+            
+            // Use only as many types as needed, each in complete sets of 3
+            const typesToUse = Math.min(requiredSets, shuffledTypes.length);
+            
+            console.log(`Using ${typesToUse} different item types, each in sets of 3`);
+            
+            // For each selected type, add exactly 3 (a complete matching set)
+            for (let i = 0; i < typesToUse; i++) {
+                const itemType = shuffledTypes[i];
+                
+                // Add exactly 3 of this type
+                for (let j = 0; j < MAX_ITEMS_PER_TYPE; j++) {
+                    itemPool.push(itemType);
+                }
+                
+                // Track in global counter
+                itemTypeCounter[itemType] = MAX_ITEMS_PER_TYPE;
+            }
+            
+            // Shuffle the pool to randomize item distribution
+            return shuffleArray(itemPool);
+        }
+
+        /** Create the initial board with guaranteed matches across shelves */
+        function createInitialBoardWithMatches(config, itemPool) {
+            // Start with guaranteed matches that span multiple shelves
+            const matchCount = Math.min(2, Math.floor(itemPool.length / 9)); // Ensure we have enough items
+            
+            for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
+                if (itemPool.length < 3) break;
+                
+                // Take the next complete set of 3 matching items
+                const matchType = itemPool[0]; // All 3 will be the same type
+                
+                // Get positions where to place the matching items (across different shelves)
+                const shelfPattern = getMatchPattern(matchIndex);
+                
+                // Place one item on each of the selected shelves
+                for (let i = 0; i < 3; i++) {
+                    const shelfId = shelfPattern[i];
+                    // Find a suitable slot on this shelf
+                    const slotId = findAvailableSlot(config, shelfId);
+                    
+                    if (slotId !== -1) {
+                        // Remove item from pool
+                        const item = itemPool.shift();
+                        // Place on initial board
+                        config.initialBoard.push([shelfId, slotId, item]);
+                        
+                        // Track item placement for verification
+                        config.itemDistribution[item] = (config.itemDistribution[item] || 0) + 1;
+                    }
+                }
+            }
+            
+            // Now fill remaining slots to have 1-3 items per shelf
+            const shelfItemCounts = Array(NUM_SHELVES).fill(0);
+            
+            // Count items already placed
+            config.initialBoard.forEach(([shelfId]) => {
+                shelfItemCounts[shelfId]++;
+            });
+            
+            // Decide how many items each shelf should have (1-3)
+            const targetCounts = Array(NUM_SHELVES).fill(0).map(() => 
+                MIN_ITEMS_PER_SHELF + Math.floor(Math.random() * 
+                (MAX_ITEMS_PER_SHELF - MIN_ITEMS_PER_SHELF + 1))
+            );
+            
+            // Fill remaining slots
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                while (shelfItemCounts[shelfId] < targetCounts[shelfId] && itemPool.length > 0) {
+                    const slotId = findAvailableSlot(config, shelfId);
+                    if (slotId !== -1) {
+                        // Get next item without creating auto-matches (3 of same type on one shelf)
+                        const item = getNextValidItem(config, itemPool, shelfId);
+                        if (item) {
+                            config.initialBoard.push([shelfId, slotId, item]);
+                            shelfItemCounts[shelfId]++;
+                            
+                            // Track item placement for verification
+                            config.itemDistribution[item] = (config.itemDistribution[item] || 0) + 1;
+                        } else {
+                            // If no valid item can be found, stop filling this shelf
+                            break;
+                        }
+                    } else {
+                        // No more available slots
+                        break;
+                    }
+                }
+            }
+        }
+        
+        /** Generate different patterns for distributing matching items across shelves */
+        function getMatchPattern(index) {
+            // Different patterns to distribute matches across shelves
+            const patterns = [
+                [0, 3, 6], // Diagonal pattern
+                [1, 4, 7], // Middle column
+                [2, 5, 8], // Right diagonal
+                [0, 1, 2], // Top row
+                [3, 4, 5], // Middle row
+                [6, 7, 8], // Bottom row
+                [0, 4, 8], // Main diagonal
+                [2, 4, 6]  // Counter diagonal
+            ];
+            
+            // Return a pattern based on the index, cycling if needed
+            return patterns[index % patterns.length];
+        }
+        
+        /** Find an available slot on a shelf */
+        function findAvailableSlot(config, shelfId) {
+            // Get used slots on this shelf
+            const usedSlots = new Set(
+                config.initialBoard
+                    .filter(item => item[0] === shelfId)
+                    .map(item => item[1])
+            );
+            
+            // Find first available slot
+            for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                if (!usedSlots.has(slotId)) {
+                    return slotId;
+                }
+            }
+            
+            return -1; // No available slots
+        }
+        
+        /** Get next item that won't create an auto-match on a shelf */
+        function getNextValidItem(config, itemPool, shelfId) {
+            if (itemPool.length === 0) return null;
+            
+            // Count item types already on this shelf
+            const shelfItems = config.initialBoard
+                .filter(item => item[0] === shelfId)
+                .map(item => item[2]);
+            
+            const typeCounts = {};
+            shelfItems.forEach(item => {
+                typeCounts[item] = (typeCounts[item] || 0) + 1;
+            });
+            
+            // Try to find an item that won't make 3 of a kind on this shelf
+            for (let i = 0; i < itemPool.length; i++) {
+                const candidate = itemPool[i];
+                if ((typeCounts[candidate] || 0) < 2) {
+                    // Safe to use this item
+                    return itemPool.splice(i, 1)[0];
+                }
+            }
+            
+            // If all items would cause an auto-match, just take the first one
+            // (this should be rare due to our strict control of item sets)
+            return itemPool.shift();
+        }
+
+        /** Create preview sequences ensuring complete sets of matches */
+        function createPreviewSequencesWithCompleteMatches(config, itemPool) {
+            // Create 2-3 waves of previews
+            const waves = MIN_PREVIEW_ROUNDS + Math.floor(Math.random() * 
+                        (MAX_PREVIEW_ROUNDS - MIN_PREVIEW_ROUNDS + 1));
+            
+            // Initialize wave-based structure
+            const waveBasedPreviews = {};
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                waveBasedPreviews[shelfId] = Array(waves).fill().map(() => []);
+            }
+            
+            // Distribute complete matching sets across waves
+            for (let wave = 0; wave < waves; wave++) {
+                // Create matches for this wave as long as we have enough items
+                while (itemPool.length >= 3) {  // Make sure we have enough items for a complete match
+                    // Find shelves that can still receive items in this wave
+                    const availableShelves = [];
+                    for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                        if (waveBasedPreviews[shelfId][wave].length < SLOTS_PER_SHELF) {
+                            availableShelves.push(shelfId);
+                        }
+                    }
+                    
+                    // If we don't have enough available shelves, move to next wave
+                    if (availableShelves.length < 3) break;
+                    
+                    // Pick 3 random shelves from available ones
+                    shuffleArray(availableShelves);
+                    const targetShelves = availableShelves.slice(0, 3);
+                    
+                    // Take the next complete set of matching items (ensuring they're the same type)
+                    const matchType = itemPool[0];
+                    const matchingItems = [];
+                    
+                    // Extract 3 matching items of this type
+                    for (let i = 0; i < itemPool.length && matchingItems.length < 3; i++) {
+                        if (itemPool[i] === matchType) {
+                            matchingItems.push(itemPool.splice(i, 1)[0]);
+                            i--; // Adjust index after removal
+                        }
+                    }
+                    
+                    // If we couldn't get 3 matching items, put them back and break
+                    if (matchingItems.length < 3) {
+                        // Return items to the pool
+                        matchingItems.forEach(item => itemPool.unshift(item));
+                        break;
+                    }
+                    
+                    // Place one matching item on each target shelf
+                    for (let i = 0; i < 3; i++) {
+                        const shelfId = targetShelves[i];
+                        const item = matchingItems[i];
+                        
+                        waveBasedPreviews[shelfId][wave].push(item);
+                        
+                        // Track item for verification
+                        config.itemDistribution[item] = (config.itemDistribution[item] || 0) + 1;
+                    }
+                }
+                
+                // Fill remaining slots in this wave with diverse items
+                for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                    // Skip if item pool is empty
+                    if (itemPool.length === 0) continue;
+                    
+                    // How many more items can this shelf take in this wave
+                    const remainingSlots = SLOTS_PER_SHELF - waveBasedPreviews[shelfId][wave].length;
+                    
+                    // Add items until shelf is full or we run out
+                    for (let i = 0; i < remainingSlots && itemPool.length > 0; i++) {
+                        // Get next item, prioritizing those that won't auto-clear on this shelf
+                        const itemsOnShelf = waveBasedPreviews[shelfId][wave];
+                        const typeCounts = {};
+                        
+                        itemsOnShelf.forEach(item => {
+                            typeCounts[item] = (typeCounts[item] || 0) + 1; 
+                        });
+                        
+                        let selectedItem = null;
+                        
+                        // Try to find an item that won't make 3 of a kind
+                        for (let j = 0; j < itemPool.length; j++) {
+                            const candidate = itemPool[j];
+                            if ((typeCounts[candidate] || 0) < 2) {
+                                selectedItem = itemPool.splice(j, 1)[0];
+                                break;
+                            }
+                        }
+                        
+                        // If all would cause auto-match, just take any item
+                        if (!selectedItem && itemPool.length > 0) {
+                            selectedItem = itemPool.shift();
+                        }
+                        
+                        // Only add the item if it's valid
+                        if (selectedItem) {
+                            waveBasedPreviews[shelfId][wave].push(selectedItem);
+                            
+                            // Track item for verification
+                            config.itemDistribution[selectedItem] = (config.itemDistribution[selectedItem] || 0) + 1;
+                        }
+                    }
+                }
+            }
+            
+            // Convert wave-based structure to flat sequences
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                // Filter out any undefined values that might have slipped through
+                config.previewSequences[shelfId] = waveBasedPreviews[shelfId].flat().filter(item => item !== undefined);
+            }
+        }
+        
+        /** Verify that all item types appear in complete sets of 3 */
+        function verifyCompleteItemSets(config) {
+            const itemCounts = {};
+            
+            // Count items on the initial board
+            config.initialBoard.forEach(([_, __, itemType]) => {
+                itemCounts[itemType] = (itemCounts[itemType] || 0) + 1;
+            });
+            
+            // Count items in preview sequences
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                if (config.previewSequences[shelfId]) {
+                    config.previewSequences[shelfId].forEach(itemType => {
+                        itemCounts[itemType] = (itemCounts[itemType] || 0) + 1;
+                    });
+                }
+            }
+            
+            // Check if all types appear exactly in multiples of 3
+            let isValid = true;
+            for (const itemType in itemCounts) {
+                if (itemCounts[itemType] % 3 !== 0) {
+                    console.error(`Item type ${itemType} has ${itemCounts[itemType]} instances (not divisible by 3)`);
+                    isValid = false;
+                }
+            }
+            
+            return isValid;
+        }
+
+        /** Fix any incomplete item sets by adjusting distribution */
+        function fixIncompleteItemSets(config) {
+            console.log("Attempting to fix incomplete item sets...");
+            
+            const itemCounts = {};
+            
+            // Count all items
+            config.initialBoard.forEach(([_, __, itemType]) => {
+                itemCounts[itemType] = (itemCounts[itemType] || 0) + 1;
+            });
+            
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                if (config.previewSequences[shelfId]) {
+                    config.previewSequences[shelfId].forEach((itemType, index) => {
+                        itemCounts[itemType] = (itemCounts[itemType] || 0) + 1;
+                    });
+                }
+            }
+            
+            // Find types with remainder counts
+            const incompleteSets = {};
+            for (const itemType in itemCounts) {
+                const remainder = itemCounts[itemType] % 3;
+                if (remainder !== 0) {
+                    incompleteSets[itemType] = remainder;
+                }
+            }
+            
+            // Try to fix by swapping items
+            for (const typeWithTooFew in incompleteSets) {
+                const needed = 3 - incompleteSets[typeWithTooFew];
+                console.log(`Type ${typeWithTooFew} needs ${needed} more to complete a set`);
+                
+                // Find types with extra that we can swap
+                for (const typeWithExtra in incompleteSets) {
+                    if (typeWithExtra !== typeWithTooFew && incompleteSets[typeWithExtra] >= needed) {
+                        console.log(`Can take ${needed} from ${typeWithExtra} to fix ${typeWithTooFew}`);
+                        
+                        // Replace items in preview sequences
+                        let replacementsNeeded = needed;
+                        
+                        for (let shelfId = 0; shelfId < NUM_SHELVES && replacementsNeeded > 0; shelfId++) {
+                            const sequence = config.previewSequences[shelfId];
+                            
+                            for (let i = 0; i < sequence.length && replacementsNeeded > 0; i++) {
+                                if (sequence[i] === typeWithExtra) {
+                                    sequence[i] = typeWithTooFew;
+                                    replacementsNeeded--;
+                                    
+                                    // Update counts
+                                    itemCounts[typeWithExtra]--;
+                                    itemCounts[typeWithTooFew]++;
+                                }
+                            }
+                        }
+                        
+                        // Update incomplete sets tracking
+                        incompleteSets[typeWithTooFew] = (itemCounts[typeWithTooFew] % 3);
+                        incompleteSets[typeWithExtra] = (itemCounts[typeWithExtra] % 3);
+                        
+                        break;
+                    }
+                }
+            }
+            
+            // Final verification
+            if (verifyCompleteItemSets(config)) {
+                console.log("Successfully fixed item distribution!");
+            } else {
+                console.error("Could not fully fix item distribution.");
+                
+                // Last resort: replace any remaining problematic items
+                // Just make sure all types appear in multiples of 3
+                const finalCounts = {};
+                
+                // Count current distribution
+                config.initialBoard.forEach(([_, __, itemType]) => {
+                    finalCounts[itemType] = (finalCounts[itemType] || 0) + 1;
+                });
+                
+                for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                    const sequence = config.previewSequences[shelfId];
+                    
+                    for (let i = 0; i < sequence.length; i++) {
+                        const itemType = sequence[i];
+                        finalCounts[itemType] = (finalCounts[itemType] || 0) + 1;
+                        
+                        // If this makes an incomplete set, change it to a type that would complete a set
+                        if (finalCounts[itemType] % 3 === 1) { // Start of an incomplete set
+                            // Find a type that needs 1 more to complete
+                            for (const type in finalCounts) {
+                                if (finalCounts[type] % 3 === 2) {
+                                    sequence[i] = type;
+                                    finalCounts[itemType]--;
+                                    finalCounts[type]++;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /** Creates the initial game state from our predefined configuration */
+        function initializeGameState() {
+            console.log("Initializing game state...");
+            uniqueIdCounter = 0;
+            // Initialize shelvesState as a 2D array filled with nulls
+            shelvesState = Array.from({ length: NUM_SHELVES }, () => Array(SLOTS_PER_SHELF).fill(null));
+            
+            // Generate a balanced game configuration
+            gameConfig = generateGameConfiguration();
+            
+            // Initialize shelves based on the configuration
+            gameConfig.initialBoard.forEach(([shelfId, slotId, itemType]) => {
+            // Ensure itemType is valid
+                if (!itemType) {
+                    console.warn(`Fixing undefined item for shelf ${shelfId}, slot ${slotId}`);
+                    itemType = ITEM_TYPES[0]; // Fallback to first emoji
+                }
+                shelvesState[shelfId][slotId] = { 
+                    emoji: itemType, 
+                    id: generateItemId() 
+                };
+            });
+                
+            // Set up preview sequences for each shelf
+            shelfPreviews = {};
+            previewPositions = {};
+            
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                // Convert the preview sequence to item objects
+                const flatSequence = [];
+                
+                if (gameConfig.previewSequences[shelfId]) {
+                    gameConfig.previewSequences[shelfId].forEach(itemType => {
+                        // Ensure itemType is valid
+                        if (!itemType) {
+                            console.warn(`Fixing undefined preview item for shelf ${shelfId}`);
+                            itemType = ITEM_TYPES[0]; // Fallback to first emoji
+                        }
+                        flatSequence.push({
+                            emoji: itemType,
+                            id: generateItemId()
+                        });
+                    });
+                }
+                
+                // Store the preview sequence for this shelf
+                shelfPreviews[shelfId] = flatSequence;
+                
+                // Initialize position in the sequence
+                previewPositions[shelfId] = 0;
+            }
+            
+            // Count all items by type for tracking
+            itemTypeCounter = {};
+            
+            // Count items on the board
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                    const item = shelvesState[shelfId][slotId];
+                    if (item) {
+                        itemTypeCounter[item.emoji] = (itemTypeCounter[item.emoji] || 0) + 1;
+                    }
+                }
+            }
+            
+            // Count items in previews
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const sequence = shelfPreviews[shelfId] || [];
+                sequence.forEach(item => {
+                    itemTypeCounter[item.emoji] = (itemTypeCounter[item.emoji] || 0) + 1;
+                });
+            }
+            
+            // Verify all item types appear in multiples of 3
+            let allValid = true;
+            for (const type in itemTypeCounter) {
+                if (itemTypeCounter[type] % 3 !== 0) {
+                    console.error(`CRITICAL: Item type ${type} has ${itemTypeCounter[type]} instances - not divisible by 3!`);
+                    allValid = false;
+                }
+            }
+            
+            if (allValid) {
+                console.log("Item distribution verified: All types appear in complete sets of 3");
+            }
+            
+            // Calculate total items remaining - using accurate counting
+            totalItemsRemaining = calculateTotalRemainingItems();
+            updateReservoirCount();
+            
+            console.log(`Initialization complete. ${totalItemsRemaining} items remaining.`);
+            validateAllPreviews();
+        }
+
+        /** Calculate the total number of items remaining in the game */
+        function calculateTotalRemainingItems() {
+            let count = 0;
+            
+            // Count items on shelves
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                    if (shelvesState[shelfId][slotId] !== null) {
+                        count++;
+                    }
+                }
+            }
+            
+            // Count items in preview sequences still waiting to be revealed
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const sequence = shelfPreviews[shelfId] || [];
+                const position = previewPositions[shelfId] || 0;
+                count += sequence.length - position;
+            }
+            
+            return count;
+        }
+
+        /** Updates the 'Items Left' display */
+        function updateReservoirCount() {
+            reservoirCountElement.textContent = `Items Left: ${totalItemsRemaining}`;
+        }
+
+        /** Get the next items for a shelf from its predefined sequence */
+        function getNextItemsForShelf(shelfId) {
+            if (!shelfPreviews[shelfId]) return [];
+            
+            const sequence = shelfPreviews[shelfId];
+            const position = previewPositions[shelfId];
+            
+            // Get the next batch of items (up to 3)
+            const items = [];
+            for (let i = position; i < sequence.length && items.length < SLOTS_PER_SHELF; i++) {
+                // Mark items as new for animation
+                const item = { ...sequence[i], isNew: true };
+                items.push(item);
+            }
+            
+            // Advance the position for this shelf
+            previewPositions[shelfId] += items.length;
+            
+            // Decrease total items count
+            totalItemsRemaining -= items.length;
+            updateReservoirCount();
+            
+            return items;
+        }
+
+        /** Updates shelf visual state - marks empty shelves as cleared only if they have more preview items */
+        function updateShelfState(shelfId) {
+            const shelfElement = document.getElementById(`shelf-${shelfId}`);
+            if (!shelfElement) return;
+            
+            // Check if shelf is empty
+            const isShelfEmpty = shelvesState[shelfId].every(item => item === null);
+            
+            // Check if there are more items in preview for this shelf
+            const hasMorePreviews = previewPositions[shelfId] < shelfPreviews[shelfId].length;
+            
+            // Update shelf appearance - only mark as "cleared" if there are more previews
+            if (isShelfEmpty && hasMorePreviews) {
+                shelfElement.classList.add('cleared');
+                
+                // Add cleared badge if not already present
+                if (!shelfElement.querySelector('.cleared-badge')) {
+                    const badge = document.createElement('div');
+                    badge.classList.add('cleared-badge');
+                    badge.textContent = 'CLEARED';
+                    shelfElement.appendChild(badge);
+                }
+                
+                // If the shelf is empty and has more previews, refill it
+                if (gameActive && !shelfElement.dataset.refilling) {
+                    shelfElement.dataset.refilling = "true";
+                    
+                    // Add a delay to make the cleared state visible before refilling
+                    setTimeout(() => {
+                        // Check if the shelf should be refilled
+                        // (It might have items now if it was filled during the timeout)
+                        if (shelvesState[shelfId].every(item => item === null) && 
+                            previewPositions[shelfId] < shelfPreviews[shelfId].length) {
+                            refillShelf(shelfId);
+                        }
+                        delete shelfElement.dataset.refilling;
+                    }, REFILL_DELAY);
+                }
+            } else {
+                shelfElement.classList.remove('cleared');
+                
+                // Remove cleared badge if present
+                const badge = shelfElement.querySelector('.cleared-badge');
+                if (badge) {
+                    badge.remove();
+                }
+            }
+        }
+
+        /** Updates/renders the preview items for all shelves */
+        function updatePreviews() {
+            console.log("Updating previews display");
+            
+            // Validate all previews first to ensure no undefined items
+            validateAllPreviews();
+            
+            // Clear all existing previews
+            document.querySelectorAll('.shelf-preview-row').forEach(el => el.remove());
+            
+            // Add preview rows for all shelves
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const shelfElement = document.getElementById(`shelf-${shelfId}`);
+                if (!shelfElement) continue;
+                
+                // Create preview row container
+                const previewRow = document.createElement('div');
+                previewRow.classList.add('shelf-preview-row');
+                
+                // Add label
+                const labelElement = document.createElement('span');
+                labelElement.classList.add('preview-label');
+                labelElement.textContent = 'Next:';
+                previewRow.appendChild(labelElement);
+                
+                // Get the next items in the preview sequence for this shelf
+                const sequence = shelfPreviews[shelfId] || [];
+                const position = previewPositions[shelfId] || 0;
+                
+                // Show the next 3 items in the sequence (or empty slots if no more items)
+                for (let i = 0; i < 3; i++) {
+                    const previewElement = document.createElement('div');
+                    previewElement.classList.add('preview-item');
+                    
+                    // If there's an item at this position in the sequence, show it
+                    if (position + i < sequence.length) {
+                        const previewItem = sequence[position + i];
+                        // Double-check that the item is valid
+                        if (!previewItem || !previewItem.emoji) {
+                            console.warn(`Found invalid preview item for shelf ${shelfId} at position ${position + i}`);
+                            previewElement.classList.add('empty');
+                            previewElement.textContent = '✕';
+                        } else {
+                            previewElement.textContent = previewItem.emoji;
+                        }
+                    } else {
+                        // Otherwise show an empty slot
+                        previewElement.classList.add('empty');
+                        previewElement.textContent = '✕';
+                    }
+                    
+                    previewRow.appendChild(previewElement);
+                }
+                
+                shelfElement.appendChild(previewRow);
+            }
+        }
+        
+        function validateAllPreviews() {
+            let fixedItems = false;
+            
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                if (!shelfPreviews[shelfId]) {
+                    shelfPreviews[shelfId] = [];
+                    continue;
+                }
+                
+                const sequence = shelfPreviews[shelfId];
+                
+                // Create a new array with only valid items
+                const validSequence = [];
+                
+                for (let i = 0; i < sequence.length; i++) {
+                    if (!sequence[i] || !sequence[i].emoji) {
+                        console.warn(`Fixing invalid preview item at shelf ${shelfId}, position ${i}`);
+                        // Create a valid item
+                        const validItem = {
+                            emoji: ITEM_TYPES[0],
+                            id: generateItemId()
+                        };
+                        validSequence.push(validItem);
+                        fixedItems = true;
+                    } else {
+                        validSequence.push(sequence[i]);
+                    }
+                }
+                
+                // Replace the sequence with only valid items
+                shelfPreviews[shelfId] = validSequence;
+                
+                // Ensure position is within bounds
+                if (previewPositions[shelfId] > validSequence.length) {
+                    previewPositions[shelfId] = validSequence.length;
+                }
+            }
+            
+            return fixedItems; // Return whether we fixed anything
+        }
+
+        /** Renders a single slot based on the current state */
+        function renderSlot(shelfId, slotId) {
+            const slotElement = document.getElementById(`slot-${shelfId}-${slotId}`);
+            if (!slotElement) { 
+                console.error(`Slot element NOT FOUND: slot-${shelfId}-${slotId}`); 
+                return; 
+            }
+            
+            slotElement.innerHTML = ''; // Clear previous content
+
+            if (!shelvesState?.[shelfId]) { 
+                console.error(`Invalid shelf state access for shelf ${shelfId}`); 
+                return; 
+            }
+
+            const itemData = shelvesState[shelfId][slotId]; // Get item object or null
+
+            if (itemData) { // If there's an item in this slot state
+                const itemElement = document.createElement('div');
+                itemElement.classList.add('game-item');
+                
+                // Add new-item class for animation if this is a new item being placed
+                if (itemData.isNew) {
+                    itemElement.classList.add('new-item');
+                    delete itemData.isNew; // Remove the flag after using it
+                }
+                
+                itemElement.textContent = itemData.emoji;
+                itemElement.id = itemData.id;
+                itemElement.dataset.emoji = itemData.emoji;
+                itemElement.draggable = true; // Item is draggable
+                itemElement.setAttribute('draggable', 'true'); // Ensure draggable attribute is set
+
+                // Add event listeners with explicit stop propagation
+                itemElement.addEventListener('dragstart', function(event) {
+                    event.stopPropagation(); // Prevent event bubbling
+                    handleDragStart(event);
+                });
+                
+                itemElement.addEventListener('dragend', function(event) {
+                    event.stopPropagation(); // Prevent event bubbling
+                    handleDragEnd(event);
+                });
+                
+                // Prevent unwanted behaviors
+                itemElement.addEventListener('mousedown', function(event) {
+                    event.stopPropagation();
+                });
+
+                slotElement.appendChild(itemElement);
+            }
+            
+            // Update shelf state (cleared/not cleared)
+            updateShelfState(shelfId);
+        }
+
+        /** Renders all slots for a given shelf */
+        function renderShelf(shelfId) {
+            for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                renderSlot(shelfId, slotId);
+            }
+        }
+
+        /** Renders the entire game board structure and items */
+        function renderBoard() {
+            console.log("Rendering board...");
+            shelvesContainer.innerHTML = ''; // Clear previous structure
+            if (!shelvesState || shelvesState.length !== NUM_SHELVES) {
+                console.error("Cannot render board, shelves state is invalid:", shelvesState);
+                return;
+            }
+            // 1. Create the shelf and slot DOM structure
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const shelfElement = document.createElement('div');
+                shelfElement.classList.add('shelf');
+                shelfElement.id = `shelf-${shelfId}`;
+                
+                // Prevent shelf from being draggable
+                shelfElement.addEventListener('dragstart', function(event) {
+                    if (event.target === shelfElement) {
+                        event.preventDefault();
+                    }
+                });
+                
+                for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                    const slotElement = document.createElement('div');
+                    slotElement.classList.add('shelf-slot');
+                    slotElement.id = `slot-${shelfId}-${slotId}`;
+                    slotElement.dataset.shelfId = shelfId;
+                    slotElement.dataset.slotId = slotId;
+                    
+                    // Prevent slot from being draggable
+                    slotElement.addEventListener('dragstart', function(event) {
+                        if (event.target === slotElement) {
+                            event.preventDefault();
+                        }
+                    });
+                    
+                    // Add drop listeners to the slot itself
+                    slotElement.addEventListener('dragover', handleDragOver);
+                    slotElement.addEventListener('dragenter', handleDragEnter);
+                    slotElement.addEventListener('dragleave', handleDragLeave);
+                    slotElement.addEventListener('drop', handleDrop);
+                    shelfElement.appendChild(slotElement);
+                }
+                shelvesContainer.appendChild(shelfElement);
+            }
+            // 2. Render the items into the created slots based on current state
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                 renderShelf(shelfId);
+            }
+            
+            console.log("Board rendering complete.");
+        }
+
+        /** Refills an empty shelf with items from its preview sequence */
+        function refillShelf(shelfId) {
+            console.log(`Attempting to refill shelf ${shelfId}`);
+            // Only refill if game is active and shelf is actually empty
+            if (!gameActive || !shelvesState[shelfId]) return;
+
+            const isShelfEmpty = shelvesState[shelfId].every(item => item === null);
+            if (!isShelfEmpty) {
+                 console.log(`Shelf ${shelfId} is not empty, not refilling.`);
+                 return;
+            }
+
+            // Check if there are more preview items for this shelf
+            if (previewPositions[shelfId] >= shelfPreviews[shelfId].length) {
+                console.log(`No more preview items for shelf ${shelfId}`);
+                return;
+            }
+
+            console.log(`Refilling shelf ${shelfId} from its preview sequence...`);
+            
+            // Get the next batch of items for this shelf
+            const itemsToUse = getNextItemsForShelf(shelfId);
+            
+            // Ensure the next batch doesn't automatically clear
+            // This is now managed by the item generation algorithm, but double check here
+            const allSameEmoji = itemsToUse.length === 3 && 
+                                itemsToUse[0].emoji === itemsToUse[1].emoji && 
+                                itemsToUse[0].emoji === itemsToUse[2].emoji;
+                                
+            if (allSameEmoji) {
+                console.warn(`Prevented auto-clear on shelf ${shelfId} - all items were ${itemsToUse[0].emoji}`);
+                // Replace the last item with a different emoji if possible
+                for (let i = 0; i < ITEM_TYPES.length; i++) {
+                    if (ITEM_TYPES[i] !== itemsToUse[0].emoji) {
+                        itemsToUse[2].emoji = ITEM_TYPES[i];
+                        break;
+                    }
+                }
+            }
+            
+            // Place the items on the shelf
+            let itemsAdded = 0;
+            for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                if (itemsAdded < itemsToUse.length) {
+                    shelvesState[shelfId][slotId] = itemsToUse[itemsAdded++];
+                    renderSlot(shelfId, slotId); // Render the newly added item
+                }
+            }
+            
+            // Update preview display after placing items
+            updatePreviews();
+            
+            console.log(`Added ${itemsAdded} items to shelf ${shelfId}.`);
+
+            // Check for matches immediately after refilling, as new items might match
+            if (itemsAdded > 0) {
+                // Use a small timeout to ensure DOM updates before check
+                setTimeout(() => checkMatchesOnShelf(shelfId), 150);
+            }
+        }
+
+        /** Checks for matches on a shelf, removes matched items, and triggers refill check */
+        function checkMatchesOnShelf(shelfId) {
+            if (!gameActive || !shelvesState[shelfId]) return;
+            console.log(`Checking matches on shelf ${shelfId}`);
+
+            const visibleItems = []; // Items currently on the shelf
+            const itemSlots = {}; // Map item.id -> slotId for easy lookup
+            for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                const item = shelvesState[shelfId][slotId];
+                if (item) {
+                    visibleItems.push(item);
+                    itemSlots[item.id] = slotId;
+                }
+            }
+
+            if (visibleItems.length < 3) return; // Need 3 items to form a match
+
+            const emojiCounts = {};
+            visibleItems.forEach(item => { emojiCounts[item.emoji] = (emojiCounts[item.emoji] || 0) + 1; });
+
+            for (const emoji in emojiCounts) {
+                if (emojiCounts[emoji] >= 3) {
+                    console.log(`Match found for ${emoji} on shelf ${shelfId}`);
+                    const itemsToMatch = visibleItems.filter(item => item.emoji === emoji).slice(0, 3);
+                    const matchedSlotIds = new Set(); // Store slots involved in the match
+
+                    // Update item type counter - decrease by 3 for this match
+                    itemTypeCounter[emoji] = Math.max(0, (itemTypeCounter[emoji] || 0) - 3);
+
+                    // Animate removal
+                    itemsToMatch.forEach(itemData => {
+                        const itemElement = document.getElementById(itemData.id);
+                        const slotId = itemSlots[itemData.id];
+                        matchedSlotIds.add(slotId);
+                        if (itemElement) {
+                            itemElement.classList.add('matched');
+                            itemElement.draggable = false; // Make non-draggable during removal
+                        } else {
+                             console.warn(`Matched item element not found: ${itemData.id}`);
+                        }
+                    });
+
+                    // Update state and check for refill AFTER animation
+                    setTimeout(() => {
+                        let itemsRemoved = false;
+                        matchedSlotIds.forEach(slotId => {
+                            // Verify the item in the state is the one we intended to remove before nulling
+                            if (shelvesState[shelfId]?.[slotId] && itemsToMatch.some(match => match.id === shelvesState[shelfId][slotId].id)) {
+                                shelvesState[shelfId][slotId] = null; // Remove item from state
+                                itemsRemoved = true;
+                                renderSlot(shelfId, slotId); // Re-render the now empty slot
+                            }
+                        });
+
+                        if (itemsRemoved) {
+                            console.log(`Items removed from shelf ${shelfId}. Checking for refill.`);
+                            
+                            // Recalculate total items remaining
+                            totalItemsRemaining = calculateTotalRemainingItems();
+                            updateReservoirCount();
+                            
+                            // Update shelf state (cleared/not cleared)
+                            updateShelfState(shelfId);
+                            
+                            // Update previews immediately when items are removed
+                            validateAllPreviews();
+                            updatePreviews();
+                            
+                            // Empty shelf will automatically activate refill from updateShelfState
+                            checkWinCondition(); // Check win condition after potential removal/refill
+                        }
+                    }, MATCH_ANIMATION_DURATION);
+                    return; // Handle only one match group per function call
+                }
+            }
+        }
+
+        // --- Drag and Drop Event Handlers ---
+        function handleDragStart(event) {
+            if (!gameActive) { 
+                event.preventDefault(); 
+                return; 
+            }
+            
+            // Make sure we're only dragging the game item
+            const itemElement = event.target;
+            if (!itemElement.classList.contains('game-item')) {
+                event.preventDefault();
+                return;
+            }
+            
+            // Stop event propagation to prevent parent elements from being dragged
+            event.stopPropagation();
+            
+            const slotElement = itemElement.closest('.shelf-slot');
+            if (!slotElement) {
+                event.preventDefault();
+                return;
+            }
+            
+            const sourceShelfId = parseInt(slotElement.dataset.shelfId);
+            const sourceSlotId = parseInt(slotElement.dataset.slotId);
+            const itemData = shelvesState[sourceShelfId]?.[sourceSlotId];
+            
+            if (!itemData) { 
+                console.error("Drag start on empty/invalid slot?"); 
+                event.preventDefault();
+                return; 
+            }
+            
+            draggedItemData = { element: itemElement, itemData, sourceShelfId, sourceSlotId };
+            event.dataTransfer.setData('text/plain', itemData.id);
+            event.dataTransfer.effectAllowed = 'move';
+            
+            // Create a custom drag image to override browser default behavior
+            const dragImage = document.createElement('div');
+            dragImage.style.position = 'absolute';
+            dragImage.style.width = '1px';
+            dragImage.style.height = '1px';
+            dragImage.style.top = '-100px'; // Position off-screen
+            dragImage.style.opacity = '0';
+            document.body.appendChild(dragImage);
+            
+            // Use the custom drag image
+            event.dataTransfer.setDragImage(dragImage, 0, 0);
+            
+            // Clean up and add dragging class
+            setTimeout(() => {
+                document.body.removeChild(dragImage);
+                itemElement.classList.add('dragging');
+            }, 0);
+        }
+        
+        function handleDragEnd(event) {
+            event.stopPropagation(); // Prevent event bubbling
+            if (draggedItemData?.element) { 
+                draggedItemData.element.classList.remove('dragging'); 
+            }
+            document.querySelectorAll('.shelf-slot.drag-over, .shelf-slot.drag-over-invalid').forEach(el => {
+                el.classList.remove('drag-over', 'drag-over-invalid');
+            });
+            draggedItemData = null;
+        }
+        
+        function handleDragOver(event) {
+            event.preventDefault(); // Necessary to allow drop
+            event.stopPropagation(); // Prevent event bubbling
+            if (!gameActive || !draggedItemData) return;
+            event.dataTransfer.dropEffect = 'move';
+        }
+        
+        function handleDragEnter(event) {
+            event.preventDefault();
+            event.stopPropagation(); // Prevent event bubbling
+            if (!gameActive || !draggedItemData) return;
+            
+            const targetSlotElement = event.target.closest('.shelf-slot');
+            if (!targetSlotElement) return;
+            
+            targetSlotElement.classList.remove('drag-over', 'drag-over-invalid'); // Reset classes first
+            
+            const targetShelfId = parseInt(targetSlotElement.dataset.shelfId);
+            const targetSlotId = parseInt(targetSlotElement.dataset.slotId);
+            let isValidDrop = true;
+            
+            // Can't drop on original slot
+            if (targetShelfId === draggedItemData.sourceShelfId && targetSlotId === draggedItemData.sourceSlotId) { 
+                isValidDrop = false; 
+            }
+            // Target slot must be empty (null in state)
+            if (shelvesState[targetShelfId]?.[targetSlotId] !== null) { 
+                isValidDrop = false; 
+            }
+            // Target shelf must have capacity (fewer than 3 items currently)
+            const visibleCount = shelvesState[targetShelfId]?.filter(item => item !== null).length ?? SHELF_CAPACITY;
+            if (visibleCount >= SHELF_CAPACITY) { 
+                isValidDrop = false; 
+            }
+            
+            // Apply visual feedback
+            if (isValidDrop) { 
+                targetSlotElement.classList.add('drag-over'); 
+            } else { 
+                targetSlotElement.classList.add('drag-over-invalid'); 
+            }
+        }
+        
+        function handleDragLeave(event) {
+            event.stopPropagation(); // Prevent event bubbling
+            if (!gameActive || !draggedItemData) return;
+            
+            const targetSlotElement = event.target.closest('.shelf-slot');
+            if (targetSlotElement) {
+                // Prevent flickering when moving between slot and item inside it
+                if (!targetSlotElement.contains(event.relatedTarget)) {
+                    targetSlotElement.classList.remove('drag-over', 'drag-over-invalid');
+                }
+            }
+        }
+        
+        function handleDrop(event) {
+            event.preventDefault();
+            event.stopPropagation(); // Prevent event bubbling
+            
+            if (!gameActive || !draggedItemData) return;
+            
+            const targetSlotElement = event.target.closest('.shelf-slot');
+            if (!targetSlotElement) { return; } // Dropped outside a slot
+            
+            targetSlotElement.classList.remove('drag-over', 'drag-over-invalid'); // Clean up UI
+
+            const targetShelfId = parseInt(targetSlotElement.dataset.shelfId);
+            const targetSlotId = parseInt(targetSlotElement.dataset.slotId);
+
+            // --- Final Validation ---
+            let isValidDrop = true;
+            if (targetShelfId === draggedItemData.sourceShelfId && targetSlotId === draggedItemData.sourceSlotId) { isValidDrop = false; }
+            if (shelvesState[targetShelfId]?.[targetSlotId] !== null) { isValidDrop = false; } // Target must be empty
+            const visibleCount = shelvesState[targetShelfId]?.filter(item => item !== null).length ?? SHELF_CAPACITY;
+            if (visibleCount >= SHELF_CAPACITY) { isValidDrop = false; } // Target shelf must have space
+
+            if (isValidDrop) {
+                const itemToMove = draggedItemData.itemData;
+                const sourceShelfId = draggedItemData.sourceShelfId;
+                
+                // Update State
+                shelvesState[sourceShelfId][draggedItemData.sourceSlotId] = null;
+                shelvesState[targetShelfId][targetSlotId] = itemToMove;
+
+                // Update UI
+                renderSlot(sourceShelfId, draggedItemData.sourceSlotId); // Source is now empty
+                renderSlot(targetShelfId, targetSlotId); // Target has the item
+                
+                // Check if source shelf is now empty and update its state
+                const isSourceShelfEmpty = shelvesState[sourceShelfId].every(item => item === null);
+                if (isSourceShelfEmpty) {
+                    updateShelfState(sourceShelfId); // Will trigger refill if needed
+                }
+
+                // Check for matches on the shelf where item was dropped
+                checkMatchesOnShelf(targetShelfId);
+                
+                checkWinCondition(); // Check if game won
+            }
+            // If drop is invalid, dragend handles visual cleanup. State remains unchanged.
+        }
+
+        // --- Game Lifecycle Functions ---
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = INITIAL_TIME;
+            timerElement.textContent = `Time: ${timeLeft}s`;
+            gameActive = true;
+            timerInterval = setInterval(() => {
+                if (!gameActive) { clearInterval(timerInterval); return; }
+                timeLeft--;
+                timerElement.textContent = `Time: ${timeLeft}s`;
+                if (timeLeft <= 0) { gameOver(false); }
+            }, 1000);
+         }
+        
+        function checkWinCondition() {
+            if (!gameActive) return;
+            
+            // Update total items count to ensure accuracy
+            totalItemsRemaining = calculateTotalRemainingItems();
+            
+            // If no items remain at all, player wins
+            if (totalItemsRemaining === 0) {
+                gameOver(true);
+                return;
+            }
+            
+            // Check for unwinnable state - items not in complete sets of 3
+            let unwinnable = false;
+            
+            // Count remaining items by type
+            const remainingCounts = {};
+            
+            // Items on shelves
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                for (let slotId = 0; slotId < SLOTS_PER_SHELF; slotId++) {
+                    const item = shelvesState[shelfId][slotId];
+                    if (item) {
+                        remainingCounts[item.emoji] = (remainingCounts[item.emoji] || 0) + 1;
+                    }
+                }
+            }
+            
+            // Items in previews
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const sequence = shelfPreviews[shelfId] || [];
+                const position = previewPositions[shelfId] || 0;
+                
+                for (let i = position; i < sequence.length; i++) {
+                    const item = sequence[i];
+                    remainingCounts[item.emoji] = (remainingCounts[item.emoji] || 0) + 1;
+                }
+            }
+            
+            // Check if all types have counts divisible by 3
+            for (const type in remainingCounts) {
+                if (remainingCounts[type] % 3 !== 0) {
+                    console.warn(`Potential issue: ${type} has ${remainingCounts[type]} remaining items (not divisible by 3)`);
+                    unwinnable = true;
+                }
+            }
+            
+            if (unwinnable) {
+                console.error("Unwinnable state detected: Items not in complete sets of 3");
+            }
+            
+            // Check if there are any possible moves left
+            let movesRemaining = false;
+            
+            // 1. Check for shelves with empty slots (can move items there)
+            for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                const emptySlots = shelvesState[shelfId].filter(item => item === null).length;
+                if (emptySlots > 0 && emptySlots < SLOTS_PER_SHELF) {
+                    movesRemaining = true;
+                    break;
+                }
+            }
+            
+            // 2. Check for shelves with potential matches (3 of the same type)
+            if (!movesRemaining) {
+                for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                    const items = shelvesState[shelfId].filter(item => item !== null);
+                    if (items.length === SLOTS_PER_SHELF) {
+                        // Count each emoji type
+                        const emojiCounts = {};
+                        items.forEach(item => {
+                            emojiCounts[item.emoji] = (emojiCounts[item.emoji] || 0) + 1;
+                        });
+                        
+                        // If any emoji appears 3 times, there's a potential match
+                        if (Object.values(emojiCounts).some(count => count >= 3)) {
+                            movesRemaining = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 3. Check for empty shelves that can be refilled
+            if (!movesRemaining) {
+                for (let shelfId = 0; shelfId < NUM_SHELVES; shelfId++) {
+                    if (shelvesState[shelfId].every(item => item === null) &&
+                        previewPositions[shelfId] < shelfPreviews[shelfId].length) {
+                        movesRemaining = true;
+                        break;
+                    }
+                }
+            }
+            
+            // If no moves remain, game is over - check if player won or lost
+            if (!movesRemaining) {
+                // If items remain but no moves are possible, player loses
+                gameOver(false, "No more moves possible!");
+            }
+        }
+        
+        function gameOver(didWin, message) {
+            if (!gameActive) return; // Prevent multiple calls
+            gameActive = false;
+            clearInterval(timerInterval);
+            if (didWin) {
+                messageElement.textContent = "Congratulations! All shelves cleared!";
+                messageElement.className = 'mb-4 text-xl text-green-600 font-semibold h-8';
+            } else {
+                messageElement.textContent = message || (timeLeft <= 0 ? "Time's up! Game Over!" : "Game Over!");
+                messageElement.className = 'mb-4 text-xl text-red-600 font-semibold h-8';
+            }
+            restartButton.classList.remove('hidden');
+            // Make remaining items non-draggable
+            document.querySelectorAll('.game-item').forEach(item => item.draggable = false);
+        }
+        
+        function initGame() {
+            console.log("initGame called");
+            gameActive = false; // Prevent actions during setup
+            clearInterval(timerInterval);
+            messageElement.textContent = ''; // Clear messages
+            messageElement.className = 'mb-4 text-xl h-8'; // Reset message style
+            restartButton.classList.add('hidden'); // Hide restart button
+            try {
+                initializeGameState(); // Setup shelvesState and predefined previews
+                renderBoard(); // Create the DOM elements
+                
+                // Show previews *before* starting the game timer
+                validateAllPreviews();
+                updatePreviews();
+                
+                // Give a short delay before starting the game
+                setTimeout(() => {
+                    startTimer(); // Start countdown and enable interactions
+                    console.log("initGame finished successfully");
+                }, 150);
+            } catch (error) {
+                console.error("Error initializing game:", error);
+                messageElement.textContent = "Error loading game!";
+                messageElement.className = 'mb-4 text-xl text-red-600 font-semibold h-8';
+            }
+        }
+
+        // --- Event Listeners ---
+        restartButton.addEventListener('click', initGame);
+        
+        // Global event listener to prevent unwanted dragging
+        document.addEventListener('dragstart', function(event) {
+            // Only allow dragging on game items
+            if (!event.target.classList.contains('game-item')) {
+                event.preventDefault();
+            }
+        }, true); // Use capture phase
+
+        // --- Initial Game Start ---
+        window.onload = initGame; // Start game when page is fully loaded
+
+    </script>
+
+</body>
+</html>
